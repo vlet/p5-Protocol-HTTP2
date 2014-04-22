@@ -6,11 +6,11 @@ use Protocol::HTTP2::HeaderCompression qw( headers_decode headers_encode );
 
 # 6.2 HEADERS
 sub decode {
-    my ( $context, $buf_ref, $buf_offset, $length ) = @_;
+    my ( $con, $buf_ref, $buf_offset, $length ) = @_;
     my ( $pad_high, $pad_low, $pg_id, $weight, $exclusive, $stream_dep ) =
       ( 0, 0 );
     my $offset    = 0;
-    my $frame_ref = $context->frame;
+    my $frame_ref = $con->decode_context->{frame};
 
     # Protocol errors
     if (
@@ -32,29 +32,30 @@ sub decode {
 
       )
     {
-        $context->error(PROTOCOL_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
     if ( $frame_ref->{flags} & PAD_HIGH ) {
-        $pad_high = unpack( 'C', substr( $$buf_ref, $buf_offset ) );
+        $pad_high = unpack( 'C', substr( $$buf_ref, $buf_offset, 1 ) );
         $offset += 1;
     }
 
     if ( $frame_ref->{flags} & PAD_LOW ) {
-        $pad_low = unpack( 'C', substr( $$buf_ref, $buf_offset + $offset ) );
+        $pad_low = unpack( 'C', substr( $$buf_ref, $buf_offset + $offset, 1 ) );
         $offset += 1;
     }
 
     if ( $frame_ref->{flags} & PRIORITY_GROUP ) {
         ( $pg_id, $weight ) =
-          unpack( 'NC', substr( $$buf_ref, $buf_offset + $offset ) );
+          unpack( 'NC', substr( $$buf_ref, $buf_offset + $offset, 5 ) );
         $pg_id &= 0x7FFF_FFFF;
         $offset += 5;
     }
 
     if ( $frame_ref->{flags} & PRIORITY_DEPENDENCY ) {
-        $stream_dep = unpack( 'N', substr( $$buf_ref, $buf_offset + $offset ) );
+        $stream_dep =
+          unpack( 'N', substr( $$buf_ref, $buf_offset + $offset, 4 ) );
         $exclusive = $stream_dep & 0x8000_0000;
         $stream_dep &= 0x7FFF_FFFF;
         $offset += 4;
@@ -63,13 +64,21 @@ sub decode {
     # Not enough space for header block
     my $hblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
     if ( $hblock_size <= 0 ) {
-        $context->error(FRAME_SIZE_ERROR);
+        $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
     my $res =
-      headers_decode( $context, $buf_ref, $buf_offset + $offset, $hblock_size );
+      headers_decode( $con, $buf_ref, $buf_offset + $offset, $hblock_size );
 
+    if ( $frame_ref->{flags} & END_HEADERS ) {
+
+        # headers are already fully decoded
+        $con->stream( $frame_ref->{stream} )->{headers} = [
+            %{ $con->decode_context->{reference_set} },
+            @{ $con->decode_context->{emitted_headers} },
+        ];
+    }
     return defined $res ? $length : undef;
 }
 

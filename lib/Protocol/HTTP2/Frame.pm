@@ -2,15 +2,22 @@ package Protocol::HTTP2::Frame;
 use strict;
 use warnings;
 use Protocol::HTTP2::Trace qw(tracer);
-use Protocol::HTTP2::Constants qw(:frame_types :errors :preface);
+use Protocol::HTTP2::Constants qw(:frame_types :errors :preface :states :flags);
 use Protocol::HTTP2::Frame::Data;
 use Protocol::HTTP2::Frame::Headers;
+use Protocol::HTTP2::Frame::Priority;
+use Protocol::HTTP2::Frame::Rst_stream;
 use Protocol::HTTP2::Frame::Settings;
+use Protocol::HTTP2::Frame::Push_promise;
+use Protocol::HTTP2::Frame::Ping;
 use Protocol::HTTP2::Frame::Goaway;
+use Protocol::HTTP2::Frame::Window_update;
+use Protocol::HTTP2::Frame::Continuation;
+use Protocol::HTTP2::Frame::Altsvc;
 
 require Exporter;
 our @ISA    = qw(Exporter);
-our @EXPORT = qw(preface_decode frame_decode frame_encode);
+our @EXPORT = qw(preface_decode preface_encode frame_decode frame_encode);
 
 # Table of payload decoders
 my %frame_class = (
@@ -49,8 +56,12 @@ sub preface_decode {
       index( $$buf_ref, PREFACE, $buf_offset ) == -1 ? undef : length(PREFACE);
 }
 
+sub preface_encode {
+    PREFACE;
+}
+
 sub frame_decode {
-    my ( $context, $buf_ref, $buf_offset ) = @_;
+    my ( $con, $buf_ref, $buf_offset ) = @_;
     return 0 if length($$buf_ref) - $buf_offset < 8;
 
     my ( $length, $type, $flags, $stream ) =
@@ -61,7 +72,7 @@ sub frame_decode {
     # Unknown type of frame
     if ( !exists $frame_class{$type} ) {
         tracer->debug("Unknown type of frame: $type\n");
-        $context->error(PROTOCOL_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
@@ -70,17 +81,24 @@ sub frame_decode {
 
     return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
-    $context->{frame} = {
+    $con->decode_context->{frame} = {
         type   => $type,
         flags  => $flags,
         length => $length,
         stream => $stream,
     };
 
-    return
-      defined $decoder{$type}->( $context, $buf_ref, $buf_offset + 8, $length )
-      ? 8 + $length
-      : undef;
+    return undef
+      unless
+      defined $decoder{$type}->( $con, $buf_ref, $buf_offset + 8, $length );
+
+    # End of stream
+    if ( $stream && ( $flags & END_STREAM ) ) {
+        tracer->debug("END_STREAM\n");
+        $con->stream_state( $stream, CLOSED );
+    }
+
+    return 8 + $length;
 }
 
 1;

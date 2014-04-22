@@ -7,6 +7,19 @@ use constant {
     MAX_INT_SIZE     => 4,
     MAX_PAYLOAD_SIZE => 1 << 14,
 
+    # Settings defaults
+    DEFAULT_HEADER_TABLE_SIZE      => 1_024,
+    DEFAULT_ENABLE_PUSH            => 1,
+    DEFAULT_MAX_CONCURRENT_STREAMS => 100,
+    DEFAULT_INITIAL_WINDOW_SIZE    => 65_535,
+
+    # Stream states
+    IDLE        => 1,
+    RESERVED    => 2,
+    OPEN        => 3,
+    HALF_CLOSED => 4,
+    CLOSED      => 5,
+
     # Preface string
     PREFACE => "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
 
@@ -78,7 +91,14 @@ our %EXPORT_TAGS = (
         qw(SETTINGS_HEADER_TABLE_SIZE SETTINGS_ENABLE_PUSH
           SETTINGS_MAX_CONCURRENT_STREAMS SETTINGS_INITIAL_WINDOW_SIZE)
     ],
-    limits => [qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE)],
+    limits => [
+        qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE
+          DEFAULT_HEADER_TABLE_SIZE
+          DEFAULT_MAX_CONCURRENT_STREAMS
+          DEFAULT_ENABLE_PUSH
+          DEFAULT_INITIAL_WINDOW_SIZE)
+    ],
+    states => [qw(IDLE RESERVED OPEN HALF_CLOSED CLOSED)],
 );
 
 our @EXPORT_OK = map { @$_ } values %EXPORT_TAGS;

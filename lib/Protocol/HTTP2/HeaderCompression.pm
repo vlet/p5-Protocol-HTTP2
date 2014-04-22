@@ -64,10 +64,19 @@ sub int_decode {
 }
 
 sub str_encode {
-    my $s = huffman_encode(shift);
-    my $pack = int_encode( length($s), 7 );
-    vec( $pack, 7, 1 ) = 1;
-    return $pack . $s;
+    my $str      = shift;
+    my $huff_str = huffman_encode($str);
+    my $pack;
+    if ( length($huff_str) < length($str) ) {
+        $pack = int_encode( length($huff_str), 7 );
+        vec( $pack, 7, 1 ) = 1;
+        $pack .= $huff_str;
+    }
+    else {
+        $pack = int_encode( length($str), 7 );
+        $pack .= $str;
+    }
+    return $pack;
 }
 
 # str_decode()
@@ -96,9 +105,7 @@ sub evict_ht {
     my $ht = $context->{header_table};
     my $rs = $context->{reference_set};
 
-    while ( $context->{ht_size} + $size >
-        $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} )
-    {
+    while ( $context->{ht_size} + $size > $context->{max_ht_size} ) {
         my $kv = pop @$ht;
         $context->{ht_size} -= 32 + length( $kv->[0] ) + length( $kv->[1] );
         delete $rs->{ $kv->[0] }
@@ -109,7 +116,7 @@ sub evict_ht {
 sub add_to_ht {
     my ( $context, $key, $value ) = @_;
     my $size = length($key) + length($value) + 32;
-    return if $size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE};
+    return if $size > $context->{max_ht_size};
 
     evict_ht( $context, $size );
 
@@ -119,7 +126,9 @@ sub add_to_ht {
 }
 
 sub headers_decode {
-    my ( $context, $buf_ref, $buf_offset, $length ) = @_;
+    my ( $con, $buf_ref, $buf_offset, $length ) = @_;
+
+    my $context = $con->decode_context;
 
     my $ht = $context->{header_table};
     my $rs = $context->{reference_set};
@@ -141,7 +150,7 @@ sub headers_decode {
             # DECODING ERROR
             if ( $index == 0 ) {
                 tracer->error("Indexed header with zero index\n");
-                $context->{error} = PROTOCOL_ERROR;
+                $con->error(PROTOCOL_ERROR);
                 return undef;
             }
 
@@ -154,7 +163,7 @@ sub headers_decode {
                             "Indexed header with index out of static table: "
                           . $index
                           . "\n" );
-                    $context->{error} = PROTOCOL_ERROR;
+                    $con->error(PROTOCOL_ERROR);
                     return undef;
                 }
                 ( $key, $value ) = @{ $stable{ $index - @$ht } };
@@ -221,7 +230,7 @@ sub headers_decode {
                             "Literal header with index out of static table: "
                           . $index
                           . "\n" );
-                    $context->{error} = PROTOCOL_ERROR;
+                    $con->error(PROTOCOL_ERROR);
                     return undef;
                 }
                 $key = $stable{ $index - @$ht }->[0];
@@ -256,15 +265,15 @@ sub headers_decode {
             return $offset unless $size;
 
             # It's not possible to increase size of HEADER_TABLE
-            if ( $size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} ) {
+            if ( $size > $con->setting(&SETTINGS_HEADER_TABLE_SIZE) ) {
                 tracer->error( "Peer attempt to increase "
                       . "SETTINGS_HEADER_TABLE_SIZE higher than current size: "
                       . "$size > "
-                      . &SETTINGS_HEADER_TABLE_SIZE );
-                $context->error(PROTOCOL_ERROR);
+                      . $con->setting(&SETTINGS_HEADER_TABLE_SIZE) );
+                $con->error(PROTOCOL_ERROR);
                 return undef;
             }
-            $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} = $ht_size;
+            $context->{max_ht_size} = $ht_size;
             evict_ht( $context, 0 );
             $offset += $size;
         }
@@ -272,7 +281,7 @@ sub headers_decode {
         # Encoding Error
         else {
             tracer->error( sprintf( "Unknown header type: %08b", $f ) );
-            $context->error(PROTOCOL_ERROR);
+            $con->error(PROTOCOL_ERROR);
             return undef;
         }
     }

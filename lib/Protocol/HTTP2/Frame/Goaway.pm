@@ -5,11 +5,11 @@ use Protocol::HTTP2::Constants qw(:flags :errors);
 use Protocol::HTTP2::Trace qw(tracer bin2hex);
 
 sub decode {
-    my ( $context, $buf_ref, $buf_offset, $length ) = @_;
-    my $frame_ref = $context->frame;
+    my ( $con, $buf_ref, $buf_offset, $length ) = @_;
+    my $frame_ref = $con->decode_context->{frame};
 
     if ( $frame_ref->{stream} != 0 ) {
-        $context->error(PROTOCOL_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
@@ -27,6 +27,14 @@ sub decode {
       if $length - 8 > 0;
 
     return $length;
+}
+
+sub encode {
+    my ( $flags_ref, $stream, $data ) = @_;
+    my $payload = pack( 'N2', @$data );
+    tracer->debug("\tGOAWAY: last stream = $data->[0], error = $data->[1]\n");
+    $payload .= $data->[2] if @$data > 2;
+    return $payload;
 }
 
 1;

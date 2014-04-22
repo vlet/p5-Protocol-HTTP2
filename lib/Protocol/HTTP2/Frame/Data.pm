@@ -5,9 +5,9 @@ use Protocol::HTTP2::Constants qw(:flags :errors);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
-    my ( $context, $buf_ref, $buf_offset, $length ) = @_;
+    my ( $con, $buf_ref, $buf_offset, $length ) = @_;
     my ( $pad_high, $pad_low, $offset ) = ( 0, 0, 0 );
-    my $frame_ref = $context->frame;
+    my $frame_ref = $con->decode_context->{frame};
 
     # Protocol errors
     if (
@@ -22,7 +22,7 @@ sub decode {
 
       )
     {
-        $context->error(PROTOCOL_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
@@ -39,15 +39,20 @@ sub decode {
     my $dblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
     if ( $dblock_size < 0 ) {
         tracer->error("Not enough space for data block");
-        $context->error(FRAME_SIZE_ERROR);
+        $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
-    $context->{stream}->{ $frame_ref->{stream} }->{data} .=
+    $con->stream( $frame_ref->{stream} )->{data} .=
       substr( $$buf_ref, $buf_offset + $offset, $dblock_size )
       if $dblock_size > 0;
 
     return $length;
+}
+
+sub encode {
+    require 'Carp';
+    Carp::croak("DATA frame encode not implemented");
 }
 
 1;
