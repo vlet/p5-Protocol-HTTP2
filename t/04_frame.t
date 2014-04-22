@@ -1,0 +1,100 @@
+use strict;
+use warnings;
+use Test::More;
+use Protocol::HTTP2::Context;
+
+BEGIN {
+    use_ok('Protocol::HTTP2::Frame');
+}
+
+sub hstr {
+    my $str = shift;
+    $str =~ s/\s//g;
+    my @a = ( $str =~ /../g );
+    return pack "C*", map { hex $_ } @a;
+}
+
+subtest 'decode_request' => sub {
+
+    my $data = hstr(<<EOF);
+        5052 4920 2a20 4854 5450 2f32 2e30 0d0a
+        0d0a 534d 0d0a 0d0a 000a 0400 0000 0000
+        0300 0000 6404 0000 ffff 0038 0105 0000
+        0001 4189 128d f07c 1f19 a400 0f83 0608
+        2f4c 4943 454e 5345 8856 032a 2f2a 548a
+        abdd 97e5 352b e162 5cbf 7f00 8dba aadc
+        ebc8 e0fc 0f86 6d1d ff8f
+EOF
+
+    my $context = Protocol::HTTP2::Context->server;
+
+    my $offset = preface_decode( \$data, 0 );
+    is( $offset, 24, "Preface exists" ) or BAIL_OUT "preface?";
+    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+        $offset += $size;
+    }
+    ok( !defined $context->error ) or diag explain $context;
+    is_deeply(
+        $context->{emitted_headers},
+        [
+            [ ':authority'      => '127.0.0.1:8000' ],
+            [ ':method'         => 'GET' ],
+            [ ':path'           => '/LICENSE' ],
+            [ ':scheme'         => 'http' ],
+            [ 'accept'          => '*/*' ],
+            [ 'accept-encoding' => 'gzip, deflate' ],
+            [ 'user-agent'      => 'nghttp2/0.4.0-DEV' ],
+        ]
+    );
+
+    $data   = hstr("0000 0401 0000 0000");
+    $offset = 0;
+    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+        $offset += $size;
+    }
+    ok( !defined $context->error ) or diag explain $context;
+
+    $data   = hstr("0008 0700 0000 0000 0000 0000 0000 0000");
+    $offset = 0;
+    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+        $offset += $size;
+    }
+    ok( !defined $context->error ) or diag explain $context;
+};
+
+subtest 'decode_response' => sub {
+
+    my $data = hstr(<<EOF);
+0005 0400 0000 0000 0300 0000 64
+EOF
+
+    my $context = Protocol::HTTP2::Context->client;
+    my $offset  = 0;
+    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+        $offset += $size;
+    }
+    ok( !defined $context->error ) or diag explain $context;
+
+    $data = hstr(<<EOF);
+    0000 0401 0000 0000 0052 0104 0000 0001
+    8877 93ba aadc ebe9 35d5 56e7 5e47 07e0
+    7c33 68ef fc7f 0f0f 0234 365a 89b5 3d33
+    26a5 ce88 803f 6494 d383 3298 6436 7bf0
+    3100 c060 8e62 8e61 136a d747 7094 a2be
+    394c 519b 4af7 9880 6030 84c8 0991 19b5
+    6ba3 002e 0000 0000 0001 6e61 6d65 203d
+    2022 5072 6f74 6f63 6f6c 2d48 5454 5032
+    220a 2320 6261 6467 6573 203d 205b 2274
+    7261 7669 7322 5d0a 0000 0001 0000 0001
+EOF
+
+    $offset = 0;
+    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+        $offset += $size;
+    }
+    is $offset, length($data), "read all data";
+    ok( !defined $context->error ) or diag explain $context;
+
+};
+
+done_testing();
