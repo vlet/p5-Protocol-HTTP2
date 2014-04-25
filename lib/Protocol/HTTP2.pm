@@ -32,8 +32,8 @@ Protocol::HTTP2 - HTTP/2 protocol (draft 12) implementation
 
 Protocol::HTTP2 is HTTP/2 protocol (draft 12) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
-own HTTP/2 client/server/intermediate on top of any event loop over plain or tls
-socket (see examples).
+own HTTP/2 client/server/intermediate on top of your favorite event loop over
+plain or tls socket (see examples).
 
 Current status - alpha. Structures, module names and methods may change vastly.
 I've started this project to understand internals of HTTP/2 and may be it will

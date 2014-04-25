@@ -1,7 +1,7 @@
 {
-   "abstract" : "It's new $module",
+   "abstract" : "HTTP/2 protocol (draft 12) implementation",
    "author" : [
-      "Vladimir Lettiev <crux@cpan.org"
+      "Vladimir Lettiev <crux@cpan.org>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v0.11.0, CPAN::Meta::Converter version 2.120921",
@@ -53,5 +53,8 @@
       }
    },
    "release_status" : "unstable",
-   "version" : "0.01"
+   "version" : "0.01",
+   "x_contributors" : [
+      "Vladimir Lettiev <thecrux@gmail.com>"
+   ]
 }
