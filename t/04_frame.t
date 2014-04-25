@@ -1,7 +1,8 @@
 use strict;
 use warnings;
 use Test::More;
-use Protocol::HTTP2::Context;
+use Protocol::HTTP2::Constants qw(const_name :endpoints :states);
+use Protocol::HTTP2::Connection;
 
 BEGIN {
     use_ok('Protocol::HTTP2::Frame');
@@ -26,40 +27,61 @@ subtest 'decode_request' => sub {
         ebc8 e0fc 0f86 6d1d ff8f
 EOF
 
-    my $context = Protocol::HTTP2::Context->server;
+    my $run_test = sub { };
+    my $con = Protocol::HTTP2::Connection->new( SERVER,
+        on_change_state => sub {
+            my ( $stream_id, $previous_state, $current_state ) = @_;
+            printf "Stream %i changed state from %s to %s\n",
+              $stream_id, const_name( "states", $previous_state ),
+              const_name( "states", $current_state );
+
+            if ( $current_state == HALF_CLOSED ) {
+                $run_test->($stream_id);
+            }
+        },
+        on_error => sub {
+            fail("Error occured");
+        }
+    );
+
+    my $run_test_flag = 0;
+
+    $run_test = sub {
+        my $stream_id = shift;
+        is_deeply(
+            $con->stream_headers($stream_id),
+            [
+                ':authority'      => '127.0.0.1:8000',
+                ':method'         => 'GET',
+                ':path'           => '/LICENSE',
+                ':scheme'         => 'http',
+                'accept'          => '*/*',
+                'accept-encoding' => 'gzip, deflate',
+                'user-agent'      => 'nghttp2/0.4.0-DEV',
+            ],
+            "correct request headers"
+        ) and $run_test_flag = 1;
+    };
 
     my $offset = preface_decode( \$data, 0 );
     is( $offset, 24, "Preface exists" ) or BAIL_OUT "preface?";
-    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
         $offset += $size;
     }
-    ok( !defined $context->error ) or diag explain $context;
-    is_deeply(
-        $context->{emitted_headers},
-        [
-            [ ':authority'      => '127.0.0.1:8000' ],
-            [ ':method'         => 'GET' ],
-            [ ':path'           => '/LICENSE' ],
-            [ ':scheme'         => 'http' ],
-            [ 'accept'          => '*/*' ],
-            [ 'accept-encoding' => 'gzip, deflate' ],
-            [ 'user-agent'      => 'nghttp2/0.4.0-DEV' ],
-        ]
-    );
-
+    ok( $con->error == 0 && $run_test_flag, "decode headers" );
     $data   = hstr("0000 0401 0000 0000");
     $offset = 0;
-    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
         $offset += $size;
     }
-    ok( !defined $context->error ) or diag explain $context;
+    ok( $con->error == 0 );
 
     $data   = hstr("0008 0700 0000 0000 0000 0000 0000 0000");
     $offset = 0;
-    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
         $offset += $size;
     }
-    ok( !defined $context->error ) or diag explain $context;
+    ok( $con->error == 0 );
 };
 
 subtest 'decode_response' => sub {
@@ -68,12 +90,37 @@ subtest 'decode_response' => sub {
 0005 0400 0000 0000 0300 0000 64
 EOF
 
-    my $context = Protocol::HTTP2::Context->client;
-    my $offset  = 0;
-    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+    my $con = Protocol::HTTP2::Connection->new(CLIENT);
+
+    # Emulate request
+    my $sid = $con->new_stream;
+    $con->stream_state( $sid, HALF_CLOSED );
+
+    my $run_test_flag = 0;
+    $con->stream_cb(
+        $sid, CLOSED,
+        sub {
+
+            is_deeply(
+                $con->stream_headers($sid),
+                [
+                    ':status'        => 200,
+                    'server'         => 'nghttpd nghttp2/0.4.0-DEV',
+                    'content-length' => 46,
+                    'cache-control'  => 'max-age=3600',
+                    'date'           => 'Fri, 18 Apr 2014 07:27:11 GMT',
+                    'last-modified'  => 'Thu, 27 Feb 2014 10:30:37 GMT',
+                ],
+                "correct response headers"
+            ) and $run_test_flag = 1;
+        }
+    );
+
+    my $offset = 0;
+    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
         $offset += $size;
     }
-    ok( !defined $context->error ) or diag explain $context;
+    ok( $con->error == 0 );
 
     $data = hstr(<<EOF);
     0000 0401 0000 0000 0052 0104 0000 0001
@@ -89,11 +136,11 @@ EOF
 EOF
 
     $offset = 0;
-    while ( my $size = frame_decode( $context, \$data, $offset ) ) {
+    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
         $offset += $size;
     }
     is $offset, length($data), "read all data";
-    ok( !defined $context->error ) or diag explain $context;
+    ok( $con->error == 0 && $run_test_flag );
 
 };
 

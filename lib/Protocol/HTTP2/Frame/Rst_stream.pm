@@ -16,7 +16,9 @@ sub decode {
 
     my $code = unpack( 'N', substr( $$buf_ref, $buf_offset, 4 ) );
 
-    tracer->debug("Receive reset stream with code $code\n");
+    tracer->debug( "Receive reset stream with error code "
+          . const_name( "errors", $code )
+          . "\n" );
 
     # Stream closed state
     $con->stream_state( $frame_ref->{stream}, CLOSED );
@@ -25,7 +27,7 @@ sub decode {
 }
 
 sub encode {
-    require 'Carp';
+    require Carp;
     Carp::croak("Rst_stream frame encoder not implemented");
 }
 

@@ -1,8 +1,9 @@
 package Protocol::HTTP2::Frame::Data;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(:flags :errors :settings);
 use Protocol::HTTP2::Trace qw(tracer);
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
@@ -19,6 +20,8 @@ sub decode {
                ( $frame_ref->{flags} & PAD_HIGH )
             && ( $frame_ref->{flags} & PAD_LOW ) == 0
         )
+        || (  !$con->setting(SETTINGS_COMPRESS_DATA)
+            && $frame_ref->{flags} & COMPRESSED )
 
       )
     {
@@ -38,20 +41,34 @@ sub decode {
 
     my $dblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
     if ( $dblock_size < 0 ) {
-        tracer->error("Not enough space for data block");
+        tracer->error("Not enough space for data block\n");
         $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
-    $con->stream( $frame_ref->{stream} )->{data} .=
-      substr( $$buf_ref, $buf_offset + $offset, $dblock_size )
-      if $dblock_size > 0;
+    return $length unless $dblock_size;
+
+    my $data = substr $$buf_ref, $buf_offset + $offset, $dblock_size;
+
+    if ( $frame_ref->{flags} & COMPRESSED ) {
+        my $output;
+        my $status = gunzip \$data => \$output;
+        unless ($status) {
+            tracer->error("gunzip failed: $GunzipError\n");
+            $con->error(PROTOCOL_ERROR);
+            return undef;
+        }
+        $data = $output;
+    }
+
+    # Update stream data container
+    $con->stream_data( $frame_ref->{stream}, $data );
 
     return $length;
 }
 
 sub encode {
-    require 'Carp';
+    require Carp;
     Carp::croak("DATA frame encode not implemented");
 }
 

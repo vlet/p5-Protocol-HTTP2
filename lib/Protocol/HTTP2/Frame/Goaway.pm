@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Goaway;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(const_name :flags :errors);
 use Protocol::HTTP2::Trace qw(tracer bin2hex);
 
 sub decode {
@@ -18,21 +18,29 @@ sub decode {
 
     $last_stream_id &= 0x7FFF_FFFF;
 
-    tracer->debug( "GOAWAY with error code $error_code, "
-          . "last stream is $last_stream_id\n" );
+    tracer->debug( "GOAWAY with error code "
+          . const_name( 'errors', $error_code )
+          . " last stream is $last_stream_id\n" );
 
     tracer->debug( "additional debug data: "
           . bin2hex( substr( $$buf_ref, $buf_offset + 8 ) )
           . "\n" )
       if $length - 8 > 0;
 
+    $con->goaway(1);
+
     return $length;
 }
 
 sub encode {
     my ( $flags_ref, $stream, $data ) = @_;
+
+    #$con->goaway(1);
+
     my $payload = pack( 'N2', @$data );
-    tracer->debug("\tGOAWAY: last stream = $data->[0], error = $data->[1]\n");
+    tracer->debug( "\tGOAWAY: last stream = $data->[0], error = "
+          . const_name( "errors", $data->[1] )
+          . "\n" );
     $payload .= $data->[2] if @$data > 2;
     return $payload;
 }

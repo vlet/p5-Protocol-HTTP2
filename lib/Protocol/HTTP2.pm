@@ -5,7 +5,7 @@ use warnings;
 
 our $VERSION = "0.01";
 
-our $draft = "11";
+our $draft = "12";
 
 sub ident_plain {
     'h2c-' . $draft;
@@ -22,7 +22,7 @@ __END__
 
 =head1 NAME
 
-Protocol::HTTP2 - HTTP2 protocol (draft 11) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 12) implementation
 
 =head1 SYNOPSIS
 
@@ -30,7 +30,18 @@ Protocol::HTTP2 - HTTP2 protocol (draft 11) implementation
 
 =head1 DESCRIPTION
 
-Protocol::HTTP2 is HTTP2 protocol (draft 11) implementation.
+Protocol::HTTP2 is HTTP/2 protocol (draft 12) implementation with stateful
+decoders/encoders of HTTP/2 frames. You may use this module to implement your
+own HTTP/2 client/server/intermediate on top of any event loop over plain or tls
+socket (see examples).
+
+Current status - alpha. Structures, module names and methods may change vastly.
+I've started this project to understand internals of HTTP/2 and may be it will
+never become production or even finished.
+
+=head1 SEE ALSO
+
+L<http://http2.github.io/> - official HTTP/2 specification site
 
 =head1 LICENSE
 

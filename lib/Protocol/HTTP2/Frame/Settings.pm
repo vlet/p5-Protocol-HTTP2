@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Settings;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(const_name :flags :errors);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
@@ -35,7 +35,8 @@ sub decode {
 
     my @settings = unpack( '(CN)*', substr( $$buf_ref, $buf_offset, $length ) );
     while ( my ( $key, $value ) = splice @settings, 0, 2 ) {
-        tracer->debug("\tSettings $key = $value\n");
+        tracer->debug(
+            "\tSettings " . const_name( "settings", $key ) . " = $value\n" );
         if ( !defined $con->setting($key) ) {
             tracer->error("\tUnknown setting $key\n");
             $con->error(PROTOCOL_ERROR);
@@ -52,7 +53,9 @@ sub encode {
     my ( $flags_ref, $stream, $data ) = @_;
     my $payload = '';
     for my $key ( sort keys %$data ) {
-        tracer->debug("\tSettings $key = $data->{$key}\n");
+        tracer->debug( "\tSettings "
+              . const_name( "settings", $key )
+              . " = $data->{$key}\n" );
         $payload .= pack( 'CN', $key, $data->{$key} );
     }
     return $payload;

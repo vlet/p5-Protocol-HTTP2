@@ -106,10 +106,11 @@ sub evict_ht {
     my $rs = $context->{reference_set};
 
     while ( $context->{ht_size} + $size > $context->{max_ht_size} ) {
-        my $kv = pop @$ht;
-        $context->{ht_size} -= 32 + length( $kv->[0] ) + length( $kv->[1] );
-        delete $rs->{ $kv->[0] }
-          if exists $rs->{ $kv->[0] } && $rs->{ $kv->[0] } eq $kv->[1];
+        my $kv_ref = pop @$ht;
+        my $kv_str = "$kv_ref";    # explicit stringification
+        $context->{ht_size} -=
+          32 + length( $kv_ref->[0] ) + length( $kv_ref->[1] );
+        delete $rs->{$kv_str};
     }
 }
 
@@ -120,8 +121,16 @@ sub add_to_ht {
 
     evict_ht( $context, $size );
 
-    my $ht = $context->{header_table};
-    unshift @$ht, [ $key, $value ];
+    my $ht     = $context->{header_table};
+    my $rs     = $context->{reference_set};
+    my $kv_ref = [ $key, $value ];
+
+    # Reference set use address of ref as a key
+    # for example: ARRAY(0xDEADBEEF)
+    # Explicit stringification
+    my $kv_str = "$kv_ref";
+    $rs->{$kv_str} = $kv_ref;
+    unshift @$ht, $kv_ref;
     $context->{ht_size} += $size;
 }
 
@@ -150,11 +159,11 @@ sub headers_decode {
             # DECODING ERROR
             if ( $index == 0 ) {
                 tracer->error("Indexed header with zero index\n");
-                $con->error(PROTOCOL_ERROR);
+                $con->error(COMPRESSION_ERROR);
                 return undef;
             }
 
-            my ( $key, $value );
+            tracer->debug("\tINDEXED($index) HEADER\t");
 
             # Static table or Header Table entry
             if ( $index > @$ht ) {
@@ -163,24 +172,29 @@ sub headers_decode {
                             "Indexed header with index out of static table: "
                           . $index
                           . "\n" );
-                    $con->error(PROTOCOL_ERROR);
+                    $con->error(COMPRESSION_ERROR);
                     return undef;
                 }
-                ( $key, $value ) = @{ $stable{ $index - @$ht } };
-            }
-            else {
-                ( $key, $value ) = @{ $ht->[ $index - 1 ] };
-            }
-
-            if ( exists $rs->{$key} && $rs->{$key} eq $value ) {
-                delete $rs->{$key};
-            }
-            else {
-                $rs->{$key} = $value;
-                push @$eh, [ $key, $value ];
+                my ( $key, $value ) = @{ $stable{ $index - @$ht } };
+                push @$eh, $key, $value;
                 add_to_ht( $context, $key, $value ) if $index > @$ht;
+                tracer->debug("$key = $value\n");
             }
-            tracer->debug("\tINDEXED($index) HEADER\t$key: $value\n");
+            else {
+                my $kv_ref = $ht->[ $index - 1 ];
+
+                # Explicit stringification of ref
+                my $kv_str = "$kv_ref";
+
+                if ( exists $rs->{$kv_str} ) {
+                    delete $rs->{$kv_str};
+                    tracer->debug("$kv_ref->[0] removed from reference set\n");
+                }
+                else {
+                    push @$eh, @$kv_ref;
+                    tracer->debug("$kv_ref->[0] = $kv_ref->[1]\n");
+                }
+            }
 
             $offset += $size;
         }
@@ -197,11 +211,10 @@ sub headers_decode {
             return $offset unless $value_size;
 
             # Emitting header
-            push @$eh, [ $key, $value ];
+            push @$eh, $key, $value;
 
             # Add to index && ref set
             if ( $f == 0x40 ) {
-                $rs->{$key} = $value;
                 add_to_ht( $context, $key, $value );
             }
             tracer->debug("\tLITERAL(new) HEADER\t$key: $value\n");
@@ -230,7 +243,7 @@ sub headers_decode {
                             "Literal header with index out of static table: "
                           . $index
                           . "\n" );
-                    $con->error(PROTOCOL_ERROR);
+                    $con->error(COMPRESSION_ERROR);
                     return undef;
                 }
                 $key = $stable{ $index - @$ht }->[0];
@@ -240,11 +253,10 @@ sub headers_decode {
             }
 
             # Emitting header
-            push @$eh, [ $key, $value ];
+            push @$eh, $key, $value;
 
             # Add to index && ref set
             if ( ( $f & 0xC0 ) == 0x40 ) {
-                $rs->{$key} = $value;
                 add_to_ht( $context, $key, $value );
             }
             tracer->debug("\tLITERAL($index) HEADER\t$key: $value\n");
@@ -270,7 +282,7 @@ sub headers_decode {
                       . "SETTINGS_HEADER_TABLE_SIZE higher than current size: "
                       . "$size > "
                       . $con->setting(&SETTINGS_HEADER_TABLE_SIZE) );
-                $con->error(PROTOCOL_ERROR);
+                $con->error(COMPRESSION_ERROR);
                 return undef;
             }
             $context->{max_ht_size} = $ht_size;
@@ -281,7 +293,7 @@ sub headers_decode {
         # Encoding Error
         else {
             tracer->error( sprintf( "Unknown header type: %08b", $f ) );
-            $con->error(PROTOCOL_ERROR);
+            $con->error(COMPRESSION_ERROR);
             return undef;
         }
     }
@@ -302,31 +314,50 @@ sub headers_encode {
             $res .= $data;
         }
     };
+    my %hlist;
+    my @headers;
+    my %exclude;
 
-    my %hlist = map { lc( $_->[0] ) => $_->[1] } @$headers;
+    # TODO: split "cookie" header to improve compression
+    for ( my $i = 0 ; $i < @$headers ; $i += 2 ) {
+        my ( $h, $v ) = ( lc( $headers->[$i] ), $headers->[ $i + 1 ] );
+        if ( exists $hlist{$h} ) {
+
+            # Concat header values to preserve order
+            # before compression
+            $hlist{$h} .= "\x00" . $v;
+        }
+        else {
+            $hlist{$h} = $v;
+        }
+        push @headers, $h;
+    }
 
     my $ht = $context->{header_table};
     my $rs = $context->{reference_set};
 
-    if ( grep { !exists $hlist{$_} } keys %$rs ) {
+    for my $kv_str ( keys %$rs ) {
+        my ( $key, $value ) = @{ $rs->{$kv_str} };
 
-        # This request has not enough headers in common with the previous
-        # request
-        $store_result->( pack( 'C', 0x30 ) );
-        $rs = $context->{reference_set} = {};
+        if ( !exists $hlist{$key} ) {
+
+            # This request has not enough headers in common with the previous
+            # request
+            $store_result->( pack( 'C', 0x30 ) );
+            $rs = $context->{reference_set} = {};
+            %exclude = ();
+            last;
+        }
+        elsif ( $hlist{$key} eq $value ) {
+            $exclude{$key} = 1;
+        }
     }
 
+    @headers = grep { !exists $exclude{$_} } @headers if %exclude;
+
   HLOOP:
-    for my $h (@$headers) {
-
-        my ( $header, $value ) = @$h;
-        $header = lc($header);
-
-        next
-          if exists $rs->{$header}
-          && $value eq $rs->{$header};
-
-        $rs->{$header} = $value;
+    for my $header (@headers) {
+        my $value = $hlist{$header};
 
         for my $i ( 0 .. $#$ht ) {
             next

@@ -1,15 +1,17 @@
 package Protocol::HTTP2::Connection;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:frame_types :errors :settings :flags :states
-  :limits);
+use Protocol::HTTP2::Constants
+  qw(const_name :frame_types :errors :settings :flags :states
+  :limits :endpoints);
 use Protocol::HTTP2::HeaderCompression qw(headers_encode);
 use Protocol::HTTP2::Frame;
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
+use Hash::MultiValue;
 
 sub new {
-    my ( $class, $type ) = @_;
+    my ( $class, $type, %opts ) = @_;
     my $self = bless {
         type => $type,
 
@@ -23,7 +25,7 @@ sub new {
 
         streams => {},
 
-        last_stream => ( $type eq 'server' ) ? 2 : 1,
+        last_stream => $type == CLIENT ? 1 : 2,
         last_peer_stream => 0,
 
         encode_ctx => {
@@ -39,8 +41,6 @@ sub new {
 
             max_ht_size => DEFAULT_HEADER_TABLE_SIZE,
 
-            # HPACK. Emitted headers
-            emitted_headers => [],
         },
 
         decode_ctx => {
@@ -59,23 +59,37 @@ sub new {
             # HPACK. Emitted headers
             emitted_headers => [],
 
+            # last frame
             frame => {},
         },
 
         # Current error
         error => 0,
 
-        queue => $type eq 'client'
-        ? [ preface_encode, frame_encode( SETTINGS, 0, 0, {} ) ]
-        : [
-            frame_encode( SETTINGS, 0, 0,
-                { &SETTINGS_MAX_CONCURRENT_STREAMS => 100 }
-            )
-        ],
+        # Output frames queue
+        queue => [],
 
+        # Connection must be shutdown
         shutdown => 0,
+
+        # issued GOAWAY: no new streams on this connection
+        goaway => 0,
     }, $class;
 
+    for (qw(on_change_state on_error)) {
+        $self->{$_} = $opts{$_} if exists $opts{$_};
+    }
+
+    $self->enqueue(
+        $type == CLIENT
+        ? ( preface_encode, frame_encode( SETTINGS, 0, 0, {} ) )
+        : frame_encode( SETTINGS, 0, 0,
+            {
+                &SETTINGS_MAX_CONCURRENT_STREAMS =>
+                  DEFAULT_MAX_CONCURRENT_STREAMS
+            }
+        )
+    );
     $self;
 }
 
@@ -89,14 +103,12 @@ sub encode_context {
 
 sub dequeue {
     my $self = shift;
-    tracer->debug("dequeue\n");
     shift @{ $self->{queue} };
 }
 
 sub enqueue {
-    my ( $self, $frame ) = @_;
-    tracer->debug("enqueue frame\n");
-    push @{ $self->{queue} }, $frame;
+    my ( $self, @frames ) = @_;
+    push @{ $self->{queue} }, @frames;
 }
 
 sub finish {
@@ -113,11 +125,35 @@ sub shutdown {
     shift->{'shutdown'};
 }
 
+sub goaway {
+    my $self = shift;
+    $self->{goaway} = shift if @_;
+    $self->{goaway};
+}
+
 sub new_stream {
     my $self = shift;
-    $self->{last_stream} += 2 if keys %{ $self->{streams} };
+    return undef if $self->goaway;
+
+    $self->{last_stream} += 2
+      if exists $self->{streams}->{ $self->{type} == CLIENT ? 1 : 2 };
     $self->{streams}->{ $self->{last_stream} } = { 'state' => IDLE };
     return $self->{last_stream};
+}
+
+sub new_peer_stream {
+    my $self      = shift;
+    my $stream_id = shift;
+    if (   $stream_id < $self->{last_peer_stream}
+        || ( $stream_id % 2 ) == ( $self->{type} == CLIENT ) ? 1 : 0
+        || $self->goaway )
+    {
+        return undef;
+    }
+    $self->{last_peer_stream} = $stream_id;
+    $self->{streams}->{$stream_id} = { 'state' => IDLE };
+
+    return $self->{last_peer_stream};
 }
 
 sub stream {
@@ -127,6 +163,99 @@ sub stream {
     $self->{streams}->{$stream_id};
 }
 
+sub decode_state {
+    my ( $self, $type, $flags, $stream_id ) = @_;
+
+    my $s          = $self->{streams}->{$stream_id};
+    my $prev_state = $s->{state};
+
+    # State machine
+    # IDLE
+    if ( $prev_state == IDLE ) {
+        if ( $type == HEADERS && $self->{type} == SERVER ) {
+            $self->stream_state( $stream_id,
+                ( $flags & END_STREAM ) ? HALF_CLOSED : OPEN );
+        }
+        elsif ( $type == PUSH_PROMISE && $self->{type} == CLIENT ) {
+            $self->stream_state( $stream_id, RESERVED );
+        }
+        else {
+            tracer->error(
+                sprintf
+                  "receive invalid frame type %s for current stream state %s",
+                const_name( "frame_types", $type ),
+                const_name( "states",      $prev_state )
+            );
+            $self->error(PROTOCOL_ERROR);
+        }
+    }
+
+    # OPEN
+    elsif ( $prev_state == OPEN ) {
+        if (   ( $flags & END_STREAM )
+            && ( $type == DATA || $type == HEADERS ) )
+        {
+            $self->stream_state( $stream_id, HALF_CLOSED );
+        }
+        elsif ( $type == RST_STREAM ) {
+            $self->stream_state( $stream_id, CLOSED );
+        }
+    }
+
+    # RESERVED (local)
+    elsif ( $prev_state == RESERVED && $self->{type} == SERVER ) {
+        if ( $type == RST_STREAM ) {
+            $self->stream_state( $stream_id, CLOSED );
+        }
+        elsif ( $type != PRIORITY ) {
+            tracer->error("only RST_STREAM/PRIORITY frames accepted");
+            $self->error(PROTOCOL_ERROR);
+        }
+    }
+
+    # RESERVED (remote)
+    elsif ( $prev_state == RESERVED && $self->{type} == CLIENT ) {
+        if ( $type == RST_STREAM ) {
+            $self->stream_state( $stream_id, CLOSED );
+        }
+        elsif ( $type == HEADERS ) {
+            $self->stream_state( $stream_id,
+                ( $flags & END_STREAM ) ? CLOSED : HALF_CLOSED );
+        }
+        else {
+            tracer->error("only RST_STREAM/HEADERS frames accepted");
+            $self->error(PROTOCOL_ERROR);
+        }
+    }
+
+    # HALF_CLOSED (local)
+    elsif ( $prev_state == HALF_CLOSED && $self->{type} == CLIENT ) {
+        if ( $type == RST_STREAM || ( $flags & END_STREAM ) ) {
+            $self->stream_state( $stream_id, CLOSED );
+        }
+    }
+
+    # HALF_CLOSED (remote)
+    elsif ( $prev_state == HALF_CLOSED && $self->{type} == SERVER ) {
+        if ( $type != CONTINUATION ) {
+            tracer->error("only CONTINUATION frames accepted");
+            $self->error(STREAM_CLOSED);
+        }
+    }
+
+    # CLOSED
+    elsif ( $prev_state == CLOSED ) {
+        if ( !grep { $type == $_ } ( WINDOW_UPDATE, PRIORITY, RST_STREAM ) ) {
+            tracer->error("stream is closed");
+            $self->error(STREAM_CLOSED);
+        }
+    }
+    else {
+        tracer->error("oops!");
+        $self->error(INTERNAL_ERROR);
+    }
+}
+
 sub stream_state {
     my $self      = shift;
     my $stream_id = shift;
@@ -134,9 +263,21 @@ sub stream_state {
     my $s = $self->{streams}->{$stream_id};
 
     if (@_) {
-        $s->{state} = shift;
+        my $new_state = shift;
+
+        $self->{on_change_state}->( $stream_id, $s->{state}, $new_state )
+          if exists $self->{on_change_state};
+
+        $s->{state} = $new_state;
+
+        # Exec callbacks for new state
         $s->{cb}->{ $s->{state} }->()
           if exists $s->{cb} && exists $s->{cb}->{ $s->{state} };
+
+        # Cleanup
+        if ( $new_state == CLOSED ) {
+            $s = $self->{streams}->{$stream_id} = { state => CLOSED };
+        }
     }
 
     $s->{state};
@@ -150,6 +291,25 @@ sub stream_cb {
     $self->{streams}->{$stream_id}->{cb}->{$state} = $cb;
 }
 
+sub stream_data {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+
+    $s->{data} .= shift if @_;
+
+    $s->{data};
+}
+
+sub stream_headers {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{headers};
+}
+
+# TODO: move this to some other module
 sub send_headers {
     my ( $self, $stream_id, $headers ) = @_;
 
@@ -159,7 +319,7 @@ sub send_headers {
         return undef;
     }
 
-    my ( $first, @rest ) = headers_encode( $self->{encode_ctx}, $headers );
+    my ( $first, @rest ) = headers_encode( $self->encode_context, $headers );
 
     my $flags = @rest ? END_STREAM : END_STREAM | END_HEADERS;
     $self->enqueue( frame_encode( HEADERS, $flags, $stream_id, $first ) );
@@ -169,12 +329,40 @@ sub send_headers {
         $self->enqueue(
             frame_encode( CONTINUATION, $flags, $stream_id, $hdr ) );
     }
+
+    # TODO: this is work of encode_state()
     $self->stream_state( $stream_id, HALF_CLOSED );
+}
+
+sub stream_headers_done {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+    tracer->debug("Headers done for stream $stream_id\n");
+
+    my $rs = $self->decode_context->{reference_set};
+    my $eh = $self->decode_context->{emitted_headers};
+
+    my $h = Hash::MultiValue->new(@$eh);
+    for my $kv_str ( keys %$rs ) {
+        my ( $key, $value ) = @{ $rs->{$kv_str} };
+        next if grep { $_ eq $value } $h->get_all($key);
+        $h->add( $key, $value );
+    }
+    $s->{headers} = [ $h->flatten ];
+
+    # Clear emitted headers;
+    $self->decode_context->{emitted_headers} = [];
 }
 
 sub error {
     my $self = shift;
-    $self->{error} = shift if @_;
+    if (@_) {
+        $self->{error} = shift;
+        $self->{on_error}->( $self->{error} ) if exists $self->{on_error};
+        $self->finish;
+    }
     $self->{error};
 }
 

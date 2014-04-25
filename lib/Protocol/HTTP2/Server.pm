@@ -10,14 +10,14 @@ use Carp;
 sub new {
     my ( $class, %opts ) = @_;
     bless {
-        con   => Protocol::HTTP2::Connection->new( CLIENT, %opts ),
+        con   => Protocol::HTTP2::Connection->new( SERVER, %opts ),
         input => '',
     }, $class;
 }
 
-my @must = (qw(:authority :method :path :scheme));
+my @must = (qw(:status));
 
-sub request {
+sub response {
     my ( $self, %h ) = @_;
     my @miss = grep { !exists $h{$_} } @must;
     croak "Missing fields in request: @miss" if @miss;
@@ -33,19 +33,9 @@ sub request {
         ]
     );
 
-    $con->stream_cb(
-        $stream_id,
-        CLOSED,
-        sub {
-            $h{on_done}->(
-                $con->stream_headers($stream_id),
-                $con->stream_data($stream_id),
-            );
-            $con->finish();
-        }
-    ) if exists $h{on_done};
-
+    $con->send_data();
     return $self;
+
 }
 
 sub shutdown {

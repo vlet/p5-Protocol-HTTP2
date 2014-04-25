@@ -2,7 +2,8 @@ package Protocol::HTTP2::Frame;
 use strict;
 use warnings;
 use Protocol::HTTP2::Trace qw(tracer);
-use Protocol::HTTP2::Constants qw(:frame_types :errors :preface :states :flags);
+use Protocol::HTTP2::Constants
+  qw(const_name :frame_types :errors :preface :states :flags);
 use Protocol::HTTP2::Frame::Data;
 use Protocol::HTTP2::Frame::Headers;
 use Protocol::HTTP2::Frame::Priority;
@@ -14,6 +15,7 @@ use Protocol::HTTP2::Frame::Goaway;
 use Protocol::HTTP2::Frame::Window_update;
 use Protocol::HTTP2::Frame::Continuation;
 use Protocol::HTTP2::Frame::Altsvc;
+use Protocol::HTTP2::Frame::Blocked;
 
 require Exporter;
 our @ISA    = qw(Exporter);
@@ -32,6 +34,7 @@ my %frame_class = (
     &WINDOW_UPDATE => 'Window_update',
     &CONTINUATION  => 'Continuation',
     &ALTSVC        => 'Altsvc',
+    &BLOCKED       => 'Blocked',
 );
 
 my %decoder =
@@ -64,10 +67,17 @@ sub frame_decode {
     my ( $con, $buf_ref, $buf_offset ) = @_;
     return 0 if length($$buf_ref) - $buf_offset < 8;
 
-    my ( $length, $type, $flags, $stream ) =
+    my ( $length, $type, $flags, $stream_id ) =
       unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
     tracer->debug(
-        "TYPE = $type, FLAGS = $flags, STREAM = $stream, LENGTH = $length\n");
+        sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = $stream_id, "
+          . "LENGTH = %i\n",
+        const_name( "frame_types", $type ),
+        $type,
+        $flags,
+        $stream_id,
+        $length
+    );
 
     # Unknown type of frame
     if ( !exists $frame_class{$type} ) {
@@ -76,8 +86,8 @@ sub frame_decode {
         return undef;
     }
 
-    $length &= 0x3FFF;
-    $stream &= 0x7FFF_FFFF;
+    $length    &= 0x3FFF;
+    $stream_id &= 0x7FFF_FFFF;
 
     return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
@@ -85,18 +95,27 @@ sub frame_decode {
         type   => $type,
         flags  => $flags,
         length => $length,
-        stream => $stream,
+        stream => $stream_id,
     };
+
+    # Create new stream structure
+    # Error when stream_id is invalid
+    if (   $stream_id
+        && !$con->stream($stream_id)
+        && !$con->new_peer_stream($stream_id) )
+    {
+        tracer->debug("Peer send invalid stream id: $stream_id\n");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
 
     return undef
       unless
       defined $decoder{$type}->( $con, $buf_ref, $buf_offset + 8, $length );
 
-    # End of stream
-    if ( $stream && ( $flags & END_STREAM ) ) {
-        tracer->debug("END_STREAM\n");
-        $con->stream_state( $stream, CLOSED );
-    }
+    # Arrived frame may change state of stream
+    $con->decode_state( $type, $flags, $stream_id )
+      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
 
     return 8 + $length;
 }

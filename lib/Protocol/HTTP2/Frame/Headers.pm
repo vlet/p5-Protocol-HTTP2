@@ -1,8 +1,9 @@
 package Protocol::HTTP2::Frame::Headers;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(:flags :errors :states);
 use Protocol::HTTP2::HeaderCompression qw( headers_decode headers_encode );
+use Protocol::HTTP2::Trace qw(tracer);
 
 # 6.2 HEADERS
 sub decode {
@@ -71,14 +72,10 @@ sub decode {
     my $res =
       headers_decode( $con, $buf_ref, $buf_offset + $offset, $hblock_size );
 
-    if ( $frame_ref->{flags} & END_HEADERS ) {
+    # Stream headers decoding complete
+    $con->stream_headers_done( $frame_ref->{stream} )
+      if $frame_ref->{flags} & END_HEADERS;
 
-        # headers are already fully decoded
-        $con->stream( $frame_ref->{stream} )->{headers} = [
-            %{ $con->decode_context->{reference_set} },
-            @{ $con->decode_context->{emitted_headers} },
-        ];
-    }
     return defined $res ? $length : undef;
 }
 
