@@ -35,14 +35,18 @@
       },
       "develop" : {
          "requires" : {
+            "AnyEvent" : "0",
             "Test::CPAN::Meta" : "0",
             "Test::MinimumVersion" : "0.10108",
             "Test::Pod" : "1.41",
-            "Test::Spellunker" : "v0.2.7"
+            "Test::Spellunker" : "v0.2.7",
+            "XML::LibXML" : "0"
          }
       },
       "runtime" : {
          "requires" : {
+            "Hash::MultiValue" : "0.12",
+            "Log::Dispatch" : "2.006",
             "perl" : "5.008005"
          }
       },
