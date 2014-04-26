@@ -24,7 +24,7 @@ sub request {
     my $con = $self->{con};
 
     my $stream_id = $con->new_stream;
-    $con->send_headers(
+    $con->send(
         $stream_id,
         [
             ( map { $_ => $h{$_} } @must ),

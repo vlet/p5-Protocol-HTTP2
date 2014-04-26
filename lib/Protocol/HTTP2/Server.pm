@@ -19,22 +19,20 @@ my @must = (qw(:status));
 sub response {
     my ( $self, %h ) = @_;
     my @miss = grep { !exists $h{$_} } @must;
-    croak "Missing fields in request: @miss" if @miss;
+    croak "Missing headers in response: @miss" if @miss;
 
     my $con = $self->{con};
 
-    my $stream_id = $con->new_stream;
-    $con->send_headers(
-        $stream_id,
+    $con->send(
+        $h{stream_id},
         [
             ( map { $_ => $h{$_} } @must ),
             exists $h{headers} ? @{ $h{headers} } : ()
-        ]
+        ],
+        exists $h{data} ? $h{data} : ()
     );
 
-    $con->send_data();
     return $self;
-
 }
 
 sub shutdown {

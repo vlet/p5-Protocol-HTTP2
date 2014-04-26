@@ -40,10 +40,11 @@ tcp_server $host, $port, sub {
             printf "Error occured: %s\n", const_name( "errors", $error );
         },
         on_request => sub {
-            my ( $headers, $data ) = @_;
+            my ( $stream_id, $headers, $data ) = @_;
             my $message = "hello, world!";
             $server->response(
                 ':status' => 200,
+                stream_id => $stream_id,
                 headers   => [
                     'server'         => 'perl-Protocol-HTTP2/0.01',
                     'content-length' => length($message),
@@ -56,7 +57,7 @@ tcp_server $host, $port, sub {
         },
     );
 
-    # First write settings to peer
+    # First send settings to peer
     while ( my $frame = $server->next_frame ) {
         $handle->push_write($frame);
     }

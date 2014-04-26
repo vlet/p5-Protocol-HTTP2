@@ -133,26 +133,33 @@ sub goaway {
     $self->{goaway};
 }
 
-sub decode_state {
-    my ( $self, $type, $flags, $stream_id ) = @_;
+sub state_machine {
+    my ( $self, $act, $type, $flags, $stream_id ) = @_;
 
     my $s          = $self->{streams}->{$stream_id};
     my $prev_state = $s->{state};
 
+    # Direction server->client
+    my $srv2cln = ( $self->{type} == SERVER && $act eq 'send' )
+      || ( $self->{type} == CLIENT && $act eq 'recv' );
+
+    # Direction client->server
+    my $cln2srv = ( $self->{type} == SERVER && $act eq 'recv' )
+      || ( $self->{type} == CLIENT && $act eq 'send' );
+
     # State machine
     # IDLE
     if ( $prev_state == IDLE ) {
-        if ( $type == HEADERS && $self->{type} == SERVER ) {
+        if ( $type == HEADERS && $cln2srv ) {
             $self->stream_state( $stream_id,
                 ( $flags & END_STREAM ) ? HALF_CLOSED : OPEN );
         }
-        elsif ( $type == PUSH_PROMISE && $self->{type} == CLIENT ) {
+        elsif ( $type == PUSH_PROMISE && $srv2cln ) {
             $self->stream_state( $stream_id, RESERVED );
         }
         else {
             tracer->error(
-                sprintf
-                  "receive invalid frame type %s for current stream state %s",
+                sprintf "invalid frame type %s for current stream state %s",
                 const_name( "frame_types", $type ),
                 const_name( "states",      $prev_state )
             );
@@ -172,53 +179,42 @@ sub decode_state {
         }
     }
 
-    # RESERVED (local)
-    elsif ( $prev_state == RESERVED && $self->{type} == SERVER ) {
+    # RESERVED (local/remote)
+    elsif ( $prev_state == RESERVED ) {
         if ( $type == RST_STREAM ) {
             $self->stream_state( $stream_id, CLOSED );
         }
-        elsif ( $type != PRIORITY ) {
-            tracer->error("only RST_STREAM/PRIORITY frames accepted");
-            $self->error(PROTOCOL_ERROR);
-        }
-    }
-
-    # RESERVED (remote)
-    elsif ( $prev_state == RESERVED && $self->{type} == CLIENT ) {
-        if ( $type == RST_STREAM ) {
-            $self->stream_state( $stream_id, CLOSED );
-        }
-        elsif ( $type == HEADERS ) {
+        elsif ( $type == HEADERS && $srv2cln ) {
             $self->stream_state( $stream_id,
                 ( $flags & END_STREAM ) ? CLOSED : HALF_CLOSED );
         }
-        else {
-            tracer->error("only RST_STREAM/HEADERS frames accepted");
+        elsif ( $type != PRIORITY && $cln2srv ) {
+            tracer->error("invalid frame $type for state RESERVED");
             $self->error(PROTOCOL_ERROR);
         }
     }
 
-    # HALF_CLOSED (local)
-    elsif ( $prev_state == HALF_CLOSED && $self->{type} == CLIENT ) {
-        if ( $type == RST_STREAM || ( $flags & END_STREAM ) ) {
+    # HALF_CLOSED (local/remote)
+    elsif ( $prev_state == HALF_CLOSED ) {
+        if (   ( $type == RST_STREAM )
+            || ( ( $flags & END_STREAM ) && $srv2cln ) )
+        {
             $self->stream_state( $stream_id, CLOSED );
         }
-    }
-
-    # HALF_CLOSED (remote)
-    elsif ( $prev_state == HALF_CLOSED && $self->{type} == SERVER ) {
-        if ( $type != CONTINUATION ) {
-            tracer->error("only CONTINUATION frames accepted");
-            $self->error(STREAM_CLOSED);
+        elsif (
+            ( !grep { $type == $_ } ( CONTINUATION, WINDOW_UPDATE, PRIORITY ) )
+            && $cln2srv )
+        {
+            tracer->error( sprintf "invalid frame %s for state HALF CLOSED\n",
+                const_name( "frame_types", $type ) );
+            $self->error(PROTOCOL_ERROR);
         }
     }
 
     # CLOSED
     elsif ( $prev_state == CLOSED ) {
-        if ( !grep { $type == $_ } ( WINDOW_UPDATE, PRIORITY, RST_STREAM ) ) {
-            tracer->error("stream is closed");
-            $self->error(STREAM_CLOSED);
-        }
+        tracer->error("stream is closed");
+        $self->error(STREAM_CLOSED);
     }
     else {
         tracer->error("oops!");
@@ -227,18 +223,14 @@ sub decode_state {
 }
 
 # TODO: move this to some other module
-sub send_headers {
-    my ( $self, $stream_id, $headers ) = @_;
-
-    my $state = $self->stream_state($stream_id);
-    if ( $state != IDLE ) {
-        tracer->error("Can't send headers on non IDLE streams ($stream_id)\n");
-        return undef;
-    }
+sub send {
+    my ( $self, $stream_id, $headers, $data ) = @_;
 
     my ( $first, @rest ) = headers_encode( $self->encode_context, $headers );
 
-    my $flags = @rest ? END_STREAM : END_STREAM | END_HEADERS;
+    my $flags = defined $data ? 0 : END_STREAM;
+    $flags |= END_HEADERS unless @rest;
+
     $self->enqueue(
         $self->frame_encode( HEADERS, $flags, $stream_id, $first ) );
     while (@rest) {
@@ -248,8 +240,17 @@ sub send_headers {
             $self->frame_encode( CONTINUATION, $flags, $stream_id, $hdr ) );
     }
 
-    # TODO: this is work of encode_state()
-    $self->stream_state( $stream_id, HALF_CLOSED );
+    return unless defined $data;
+
+    while ( length($data) > MAX_PAYLOAD_SIZE ) {
+        $self->enqueue(
+            $self->frame_encode( DATA, 0, $stream_id,
+                substr( $data, 0, MAX_PAYLOAD_SIZE, '' )
+            )
+        );
+    }
+    $self->enqueue(
+        $self->frame_encode( DATA, END_STREAM, $stream_id, $data ) );
 }
 
 sub error {

@@ -42,10 +42,15 @@ my %encoder =
   keys %frame_class;
 
 sub frame_encode {
-    my ( $con, $type, $flags, $stream, $data ) = @_;
+    my ( $con, $type, $flags, $stream_id, $data ) = @_;
 
-    my $payload = $encoder{$type}->( $con, \$flags, $stream, $data );
-    pack( 'nC2N', length($payload), $type, $flags, $stream ) . $payload;
+    my $payload = $encoder{$type}->( $con, \$flags, $stream_id, $data );
+
+    # Sended frame may change state of stream
+    $con->state_machine( 'send', $type, $flags, $stream_id )
+      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
+
+    pack( 'nC2N', length($payload), $type, $flags, $stream_id ) . $payload;
 }
 
 sub preface_decode {
@@ -110,7 +115,7 @@ sub frame_decode {
       defined $decoder{$type}->( $con, $buf_ref, $buf_offset + 8, $length );
 
     # Arrived frame may change state of stream
-    $con->decode_state( $type, $flags, $stream_id )
+    $con->state_machine( 'recv', $type, $flags, $stream_id )
       if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
 
     return 8 + $length;
