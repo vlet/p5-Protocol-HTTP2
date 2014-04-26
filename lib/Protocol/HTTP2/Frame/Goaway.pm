@@ -33,9 +33,9 @@ sub decode {
 }
 
 sub encode {
-    my ( $flags_ref, $stream, $data ) = @_;
+    my ( $con, $flags_ref, $stream, $data ) = @_;
 
-    #$con->goaway(1);
+    $con->goaway(1);
 
     my $payload = pack( 'N2', @$data );
     tracer->debug( "\tGOAWAY: last stream = $data->[0], error = "

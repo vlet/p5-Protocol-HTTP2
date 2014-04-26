@@ -2,10 +2,9 @@ use strict;
 use warnings;
 use Test::More;
 use Protocol::HTTP2::Constants qw(const_name :endpoints :states);
-use Protocol::HTTP2::Connection;
 
 BEGIN {
-    use_ok('Protocol::HTTP2::Frame');
+    use_ok('Protocol::HTTP2::Connection');
 }
 
 sub hstr {
@@ -63,22 +62,22 @@ EOF
         ) and $run_test_flag = 1;
     };
 
-    my $offset = preface_decode( \$data, 0 );
+    my $offset = $con->preface_decode( \$data, 0 );
     is( $offset, 24, "Preface exists" ) or BAIL_OUT "preface?";
-    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
+    while ( my $size = $con->frame_decode( \$data, $offset ) ) {
         $offset += $size;
     }
     ok( $con->error == 0 && $run_test_flag, "decode headers" );
     $data   = hstr("0000 0401 0000 0000");
     $offset = 0;
-    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
+    while ( my $size = $con->frame_decode( \$data, $offset ) ) {
         $offset += $size;
     }
     ok( $con->error == 0 );
 
     $data   = hstr("0008 0700 0000 0000 0000 0000 0000 0000");
     $offset = 0;
-    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
+    while ( my $size = $con->frame_decode( \$data, $offset ) ) {
         $offset += $size;
     }
     ok( $con->error == 0 );
@@ -117,7 +116,7 @@ EOF
     );
 
     my $offset = 0;
-    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
+    while ( my $size = $con->frame_decode( \$data, $offset ) ) {
         $offset += $size;
     }
     ok( $con->error == 0 );
@@ -136,7 +135,7 @@ EOF
 EOF
 
     $offset = 0;
-    while ( my $size = frame_decode( $con, \$data, $offset ) ) {
+    while ( my $size = $con->frame_decode( \$data, $offset ) ) {
         $offset += $size;
     }
     is $offset, length($data), "read all data";

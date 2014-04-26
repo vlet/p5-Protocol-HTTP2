@@ -6,9 +6,11 @@ use Protocol::HTTP2::Constants
   :limits :endpoints);
 use Protocol::HTTP2::HeaderCompression qw(headers_encode);
 use Protocol::HTTP2::Frame;
+use Protocol::HTTP2::Stream;
 use Protocol::HTTP2::Trace qw(tracer);
-use Carp;
-use Hash::MultiValue;
+
+# Mixin
+our @ISA = qw(Protocol::HTTP2::Frame Protocol::HTTP2::Stream);
 
 sub new {
     my ( $class, $type, %opts ) = @_;
@@ -82,8 +84,8 @@ sub new {
 
     $self->enqueue(
         $type == CLIENT
-        ? ( preface_encode, frame_encode( SETTINGS, 0, 0, {} ) )
-        : frame_encode( SETTINGS, 0, 0,
+        ? ( $self->preface_encode, $self->frame_encode( SETTINGS, 0, 0, {} ) )
+        : $self->frame_encode( SETTINGS, 0, 0,
             {
                 &SETTINGS_MAX_CONCURRENT_STREAMS =>
                   DEFAULT_MAX_CONCURRENT_STREAMS
@@ -114,7 +116,7 @@ sub enqueue {
 sub finish {
     my $self = shift;
     $self->enqueue(
-        frame_encode( GOAWAY, 0, 0,
+        $self->frame_encode( GOAWAY, 0, 0,
             [ $self->{last_peer_stream}, $self->{error} ]
         )
     );
@@ -129,38 +131,6 @@ sub goaway {
     my $self = shift;
     $self->{goaway} = shift if @_;
     $self->{goaway};
-}
-
-sub new_stream {
-    my $self = shift;
-    return undef if $self->goaway;
-
-    $self->{last_stream} += 2
-      if exists $self->{streams}->{ $self->{type} == CLIENT ? 1 : 2 };
-    $self->{streams}->{ $self->{last_stream} } = { 'state' => IDLE };
-    return $self->{last_stream};
-}
-
-sub new_peer_stream {
-    my $self      = shift;
-    my $stream_id = shift;
-    if (   $stream_id < $self->{last_peer_stream}
-        || ( $stream_id % 2 ) == ( $self->{type} == CLIENT ) ? 1 : 0
-        || $self->goaway )
-    {
-        return undef;
-    }
-    $self->{last_peer_stream} = $stream_id;
-    $self->{streams}->{$stream_id} = { 'state' => IDLE };
-
-    return $self->{last_peer_stream};
-}
-
-sub stream {
-    my ( $self, $stream_id ) = @_;
-    return undef unless exists $self->{streams}->{$stream_id};
-
-    $self->{streams}->{$stream_id};
 }
 
 sub decode_state {
@@ -256,59 +226,6 @@ sub decode_state {
     }
 }
 
-sub stream_state {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-
-    if (@_) {
-        my $new_state = shift;
-
-        $self->{on_change_state}->( $stream_id, $s->{state}, $new_state )
-          if exists $self->{on_change_state};
-
-        $s->{state} = $new_state;
-
-        # Exec callbacks for new state
-        $s->{cb}->{ $s->{state} }->()
-          if exists $s->{cb} && exists $s->{cb}->{ $s->{state} };
-
-        # Cleanup
-        if ( $new_state == CLOSED ) {
-            $s = $self->{streams}->{$stream_id} = { state => CLOSED };
-        }
-    }
-
-    $s->{state};
-}
-
-sub stream_cb {
-    my ( $self, $stream_id, $state, $cb ) = @_;
-
-    return undef unless exists $self->{streams}->{$stream_id};
-
-    $self->{streams}->{$stream_id}->{cb}->{$state} = $cb;
-}
-
-sub stream_data {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-
-    $s->{data} .= shift if @_;
-
-    $s->{data};
-}
-
-sub stream_headers {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{headers};
-}
-
 # TODO: move this to some other module
 sub send_headers {
     my ( $self, $stream_id, $headers ) = @_;
@@ -322,38 +239,17 @@ sub send_headers {
     my ( $first, @rest ) = headers_encode( $self->encode_context, $headers );
 
     my $flags = @rest ? END_STREAM : END_STREAM | END_HEADERS;
-    $self->enqueue( frame_encode( HEADERS, $flags, $stream_id, $first ) );
+    $self->enqueue(
+        $self->frame_encode( HEADERS, $flags, $stream_id, $first ) );
     while (@rest) {
         my $hdr = shift @rest;
         my $flags = @rest ? 0 : END_HEADERS;
         $self->enqueue(
-            frame_encode( CONTINUATION, $flags, $stream_id, $hdr ) );
+            $self->frame_encode( CONTINUATION, $flags, $stream_id, $hdr ) );
     }
 
     # TODO: this is work of encode_state()
     $self->stream_state( $stream_id, HALF_CLOSED );
-}
-
-sub stream_headers_done {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-    tracer->debug("Headers done for stream $stream_id\n");
-
-    my $rs = $self->decode_context->{reference_set};
-    my $eh = $self->decode_context->{emitted_headers};
-
-    my $h = Hash::MultiValue->new(@$eh);
-    for my $kv_str ( keys %$rs ) {
-        my ( $key, $value ) = @{ $rs->{$kv_str} };
-        next if grep { $_ eq $value } $h->get_all($key);
-        $h->add( $key, $value );
-    }
-    $s->{headers} = [ $h->flatten ];
-
-    # Clear emitted headers;
-    $self->decode_context->{emitted_headers} = [];
 }
 
 sub error {
@@ -375,7 +271,7 @@ sub setting {
 
 sub accept_settings {
     my $self = shift;
-    $self->enqueue( frame_encode( SETTINGS, ACK, 0, {} ) );
+    $self->enqueue( $self->frame_encode( SETTINGS, ACK, 0, {} ) );
 }
 
 1;

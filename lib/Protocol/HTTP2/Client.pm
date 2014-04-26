@@ -2,7 +2,6 @@ package Protocol::HTTP2::Client;
 use strict;
 use warnings;
 use Protocol::HTTP2::Connection;
-use Protocol::HTTP2::Frame;
 use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
@@ -64,8 +63,9 @@ sub feed {
     $self->{input} .= $chunk;
     my $offset = 0;
     my $len;
+    my $con = $self->{con};
     tracer->debug( "got " . length($chunk) . " bytes on a wire\n" );
-    while ( $len = frame_decode( $self->{con}, \$self->{input}, $offset ) ) {
+    while ( $len = $con->frame_decode( \$self->{input}, $offset ) ) {
         tracer->debug("decoded frame at $offset, length $len\n");
         $offset += $len;
     }

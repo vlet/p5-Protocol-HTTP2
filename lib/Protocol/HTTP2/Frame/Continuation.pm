@@ -11,7 +11,7 @@ sub decode {
 }
 
 sub encode {
-    my ( $flags_ref, $stream, $data ) = @_;
+    my ( $con, $flags_ref, $stream, $data ) = @_;
     return $data;
 }
 

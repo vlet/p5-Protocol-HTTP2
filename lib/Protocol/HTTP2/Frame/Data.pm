@@ -68,6 +68,7 @@ sub decode {
 }
 
 sub encode {
+    my ( $con, $flags_ref, $stream, $data ) = @_;
     require Carp;
     Carp::croak("DATA frame encode not implemented");
 }

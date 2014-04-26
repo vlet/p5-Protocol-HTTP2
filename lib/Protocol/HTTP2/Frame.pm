@@ -17,10 +17,6 @@ use Protocol::HTTP2::Frame::Continuation;
 use Protocol::HTTP2::Frame::Altsvc;
 use Protocol::HTTP2::Frame::Blocked;
 
-require Exporter;
-our @ISA    = qw(Exporter);
-our @EXPORT = qw(preface_decode preface_encode frame_decode frame_encode);
-
 # Table of payload decoders
 my %frame_class = (
     &DATA          => 'Data',
@@ -46,14 +42,14 @@ my %encoder =
   keys %frame_class;
 
 sub frame_encode {
-    my ( $type, $flags, $stream, $data ) = @_;
+    my ( $con, $type, $flags, $stream, $data ) = @_;
 
-    my $payload = $encoder{$type}->( \$flags, $stream, $data );
+    my $payload = $encoder{$type}->( $con, \$flags, $stream, $data );
     pack( 'nC2N', length($payload), $type, $flags, $stream ) . $payload;
 }
 
 sub preface_decode {
-    my ( $buf_ref, $buf_offset ) = @_;
+    my ( $con, $buf_ref, $buf_offset ) = @_;
     return 0 if length($$buf_ref) - $buf_offset < length(PREFACE);
     return
       index( $$buf_ref, PREFACE, $buf_offset ) == -1 ? undef : length(PREFACE);

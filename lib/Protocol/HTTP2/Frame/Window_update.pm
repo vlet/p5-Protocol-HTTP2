@@ -11,6 +11,7 @@ sub decode {
 }
 
 sub encode {
+    my ( $con, $flags_ref, $stream, $data ) = @_;
     require Carp;
     Carp::croak("Window_update frame encoder not implemented");
 }

@@ -50,7 +50,7 @@ sub decode {
 }
 
 sub encode {
-    my ( $flags_ref, $stream, $data ) = @_;
+    my ( $con, $flags_ref, $stream, $data ) = @_;
     my $payload = '';
     for my $key ( sort keys %$data ) {
         tracer->debug( "\tSettings "
