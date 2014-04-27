@@ -4,6 +4,7 @@ use warnings;
 use Protocol::HTTP2::Constants qw(:flags :errors :settings);
 use Protocol::HTTP2::Trace qw(tracer);
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
+use IO::Compress::Gzip qw(gzip $GzipError);
 
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
