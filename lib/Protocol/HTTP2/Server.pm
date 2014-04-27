@@ -1,4 +1,4 @@
-package Protocol::HTTP2::Client;
+package Protocol::HTTP2::Server;
 use strict;
 use warnings;
 use Protocol::HTTP2::Connection;
@@ -8,10 +8,31 @@ use Carp;
 
 sub new {
     my ( $class, %opts ) = @_;
-    bless {
-        con   => Protocol::HTTP2::Connection->new( SERVER, %opts ),
+    my $con;
+
+    if ( exists $opts{on_request} ) {
+        my $cb = delete $opts{on_request};
+        $opts{on_new_peer_stream} = sub {
+            my $stream_id = shift;
+            $con->stream_cb(
+                $stream_id,
+                HALF_CLOSED,
+                sub {
+                    $cb->(
+                        $stream_id,
+                        $con->stream_headers($stream_id),
+                        $con->stream_data($stream_id),
+                    );
+                }
+            );
+          }
+    }
+
+    $con = Protocol::HTTP2::Connection->new( SERVER, %opts ),
+      bless {
+        con   => $con,
         input => '',
-    }, $class;
+      }, $class;
 }
 
 my @must = (qw(:status));
@@ -53,6 +74,13 @@ sub feed {
     my $len;
     my $con = $self->{con};
     tracer->debug( "got " . length($chunk) . " bytes on a wire\n" );
+    if ( !$con->preface ) {
+        return unless $len = $con->preface_decode( \$self->{input}, $offset );
+        tracer->debug("got preface\n");
+        $offset += $len;
+        $con->preface(1);
+    }
+
     while ( $len = $con->frame_decode( \$self->{input}, $offset ) ) {
         tracer->debug("decoded frame at $offset, length $len\n");
         $offset += $len;

@@ -28,6 +28,8 @@ sub new_peer_stream {
     }
     $self->{last_peer_stream} = $stream_id;
     $self->{streams}->{$stream_id} = { 'state' => IDLE };
+    $self->{on_new_peer_stream}->($stream_id)
+      if exists $self->{on_new_peer_stream} && $self->{type} == SERVER;
 
     return $self->{last_peer_stream};
 }

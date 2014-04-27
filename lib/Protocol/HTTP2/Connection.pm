@@ -76,9 +76,12 @@ sub new {
 
         # issued GOAWAY: no new streams on this connection
         goaway => 0,
+
+        # get preface
+        preface => 0,
     }, $class;
 
-    for (qw(on_change_state on_error)) {
+    for (qw(on_change_state on_new_peer_stream on_error)) {
         $self->{$_} = $opts{$_} if exists $opts{$_};
     }
 
@@ -131,6 +134,12 @@ sub goaway {
     my $self = shift;
     $self->{goaway} = shift if @_;
     $self->{goaway};
+}
+
+sub preface {
+    my $self = shift;
+    $self->{preface} = shift if @_;
+    $self->{preface};
 }
 
 sub state_machine {
