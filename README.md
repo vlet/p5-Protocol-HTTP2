@@ -17,6 +17,41 @@ Current status - alpha. Structures, module names and methods may change vastly.
 I've started this project to understand internals of HTTP/2 and may be it will
 never become production or even finished.
 
+# STATUS
+
+    | Spec                    | status  |
+    | ----------------------- | ------- |
+    | Negotiation             | direct  |
+    | Preface                 |    +    |
+    | Headers (de)compression |    +    |
+    | Stream states           |    +    |
+    | Flow control            |    -    |
+    | Server push             |    -    |
+    | Connect method          |    -    |
+
+
+
+    | Frame           | encoder | decoder |
+    | --------------- |:-------:|:-------:|
+    | DATA            |    ~    |    +    |
+    | HEADERS         |    +    |    +    |
+    | PRIORITY        |    -    |    -    |
+    | RST_STREAM      |    -    |    +    |
+    | SETTINGS        |    +    |    +    |
+    | PUSH_PROMISE    |    -    |    -    |
+    | PING            |    -    |    -    |
+    | GOAWAY          |    +    |    +    |
+    | WINDOW_UPDATE   |    -    |    -    |
+    | CONTINUATION    |    ~    |    -    |
+    | ALTSVC          |    -    |    -    |
+    | BLOCKED         |    -    |    ~    |
+
+
+
+- \- -- not implemeted
+- ~ -- incomplete
+- \+ -- implemented (may even work)
+
 # SEE ALSO
 
 [http://http2.github.io/](http://http2.github.io/) - official HTTP/2 specification site
@@ -30,4 +65,4 @@ it under the same terms as Perl itself.
 
 # AUTHOR
 
-Vladimir Lettiev <crux@cpan.org>
+Vladimir Lettiev <thecrux@gmail.com<gt>

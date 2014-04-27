@@ -1,7 +1,7 @@
 {
    "abstract" : "HTTP/2 protocol (draft 12) implementation",
    "author" : [
-      "Vladimir Lettiev <crux@cpan.org>"
+      "Vladimir Lettiev <thecrux@gmail.com<gt>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v0.11.0, CPAN::Meta::Converter version 2.120921",
@@ -46,6 +46,7 @@
       "runtime" : {
          "requires" : {
             "Hash::MultiValue" : "0.12",
+            "IO::Compress" : "2.033",
             "Log::Dispatch" : "2.006",
             "perl" : "5.008005"
          }
