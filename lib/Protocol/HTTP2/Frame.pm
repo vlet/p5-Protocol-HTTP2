@@ -70,8 +70,12 @@ sub frame_decode {
 
     my ( $length, $type, $flags, $stream_id ) =
       unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
+
+    $length    &= 0x3FFF;
+    $stream_id &= 0x7FFF_FFFF;
+
     tracer->debug(
-        sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = $stream_id, "
+        sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = %i, "
           . "LENGTH = %i\n",
         const_name( "frame_types", $type ),
         $type,
@@ -86,9 +90,6 @@ sub frame_decode {
         $con->error(PROTOCOL_ERROR);
         return undef;
     }
-
-    $length    &= 0x3FFF;
-    $stream_id &= 0x7FFF_FFFF;
 
     return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
