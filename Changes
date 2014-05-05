@@ -2,5 +2,12 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.02 2014-05-05T20:24:31Z
+
+    - implemented CONTINUATION frame decoding
+    - docs: table about frame types, flags and stream id
+
+0.01 2014-04-27T08:51:15Z
+
     - original version
 
