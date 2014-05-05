@@ -63,7 +63,7 @@ never become production or even finished.
     | PING            |    -    |    -    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    -    |    -    |
-    | CONTINUATION    |    ~    |    -    |
+    | CONTINUATION    |    ~    |    +    |
     | ALTSVC          |    -    |    -    |
     | BLOCKED         |    -    |    ~    |
 
