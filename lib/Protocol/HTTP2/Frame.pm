@@ -121,4 +121,37 @@ sub frame_decode {
     return 8 + $length;
 }
 
+=pod
+
+=head1 NOTES
+
+=head2 Frame Types vs Flags and Stream ID
+
+    Table represent possible combination of frame types and flags.
+    Last column -- Stream ID of frame types (x -- sid >= 1, 0 -- sid = 0)
+
+
+                        +-END_STREAM 0x1    +-PAD_HIGH 0x10
+                        |   +-ACK 0x1       |   +-PRIORITY_GROUP 0x20
+                        |   |   +-END_SEGMENT 0x2   +-COMPRESSED 0x20
+                        |   |   |   +-END_HEADERS 0x4   +-PRIORITY_DEPENDENCY 0x40
+                        |   |   |   |   +-PAD_LOW 0x8   |        +-stream id (value)
+                        |   |   |   |   |   |   |   |   |        |
+    | frame type\flag | V | V | V | V | V | V | V | V | V |   |  V  |
+    | --------------- |:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:| - |:---:|
+    | DATA            | x |   | x |   | x | x |   | x |   |   |  x  |
+    | HEADERS         | x |   | x | x | x | x | x |   | x |   |  x  |
+    | PRIORITY        |   |   |   |   |   |   | x |   | x |   |  x  |
+    | RST_STREAM      |   |   |   |   |   |   |   |   |   |   |  x  |
+    | SETTINGS        |   | x |   |   |   |   |   |   |   |   |  0  |
+    | PUSH_PROMISE    |   |   |   | x | x | x |   |   |   |   |  x  |
+    | PING            |   | x |   |   |   |   |   |   |   |   |  0  |
+    | GOAWAY          |   |   |   |   |   |   |   |   |   |   |  0  |
+    | WINDOW_UPDATE   |   |   |   |   |   |   |   |   |   |   | 0/x |
+    | CONTINUATION    |   |   |   | x | x | x |   |   |   |   |  x  |
+    | ALTSVC          |   |   |   | x | x | x |   |   |   |   |  x  |
+    | BLOCKED         |   |   |   |   |   |   |   |   |   |   | 0/x |
+
+=cut
+
 1;
