@@ -91,7 +91,7 @@ it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Vladimir Lettiev E<lt>thecrux@gmail.com<gt>
+Vladimir Lettiev E<lt>thecrux@gmail.comE<gt>
 
 =cut
 
