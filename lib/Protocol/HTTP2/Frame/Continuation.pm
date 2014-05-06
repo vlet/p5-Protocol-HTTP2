@@ -2,7 +2,6 @@ package Protocol::HTTP2::Frame::Continuation;
 use strict;
 use warnings;
 use Protocol::HTTP2::Constants qw(:flags :errors);
-use Protocol::HTTP2::HeaderCompression qw( headers_decode );
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
@@ -45,19 +44,21 @@ sub decode {
         return undef;
     }
 
-    my $res =
-      headers_decode( $con, $buf_ref, $buf_offset + $offset, $hblock_size );
+    $con->stream_header_block( $frame_ref->{stream},
+        substr( $$buf_ref, $buf_offset + $offset, $hblock_size ) );
 
-    # Stream headers decoding complete
+    # Stream header block complete
     $con->stream_headers_done( $frame_ref->{stream} )
+      or return undef
       if $frame_ref->{flags} & END_HEADERS;
 
-    return defined $res ? $length : undef;
+    return $length;
+
 }
 
 sub encode {
-    my ( $con, $flags_ref, $stream, $data ) = @_;
-    return $data;
+    my ( $con, $flags_ref, $stream, $data_ref ) = @_;
+    return $$data_ref;
 }
 
 1;

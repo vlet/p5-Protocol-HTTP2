@@ -42,9 +42,9 @@ my %encoder =
   keys %frame_class;
 
 sub frame_encode {
-    my ( $con, $type, $flags, $stream_id, $data ) = @_;
+    my ( $con, $type, $flags, $stream_id, $data_ref ) = @_;
 
-    my $payload = $encoder{$type}->( $con, \$flags, $stream_id, $data );
+    my $payload = $encoder{$type}->( $con, \$flags, $stream_id, $data_ref );
 
     # Sended frame may change state of stream
     $con->state_machine( 'send', $type, $flags, $stream_id )
@@ -71,8 +71,17 @@ sub frame_decode {
     my ( $length, $type, $flags, $stream_id ) =
       unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
 
+    # Unknown type of frame
+    if ( !exists $frame_class{$type} ) {
+        tracer->debug("Unknown type of frame: $type\n");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
+
     $length    &= 0x3FFF;
     $stream_id &= 0x7FFF_FFFF;
+
+    return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
     tracer->debug(
         sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = %i, "
@@ -83,15 +92,6 @@ sub frame_decode {
         $stream_id,
         $length
     );
-
-    # Unknown type of frame
-    if ( !exists $frame_class{$type} ) {
-        tracer->debug("Unknown type of frame: $type\n");
-        $con->error(PROTOCOL_ERROR);
-        return undef;
-    }
-
-    return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
     $con->decode_context->{frame} = {
         type   => $type,

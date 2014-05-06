@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Hash::MultiValue;
 use Protocol::HTTP2::Constants qw(:states :endpoints);
+use Protocol::HTTP2::HeaderCompression qw( headers_decode );
 use Protocol::HTTP2::Trace qw(tracer);
 
 # Streams related part of Protocol::HTTP2::Conntection
@@ -41,6 +42,8 @@ sub stream {
     $self->{streams}->{$stream_id};
 }
 
+# stream_state ( $self, $stream_id, $new_state?, $pending? )
+
 sub stream_state {
     my $self      = shift;
     my $stream_id = shift;
@@ -48,24 +51,38 @@ sub stream_state {
     my $s = $self->{streams}->{$stream_id};
 
     if (@_) {
-        my $new_state = shift;
+        my ( $new_state, $pending ) = @_;
 
-        $self->{on_change_state}->( $stream_id, $s->{state}, $new_state )
-          if exists $self->{on_change_state};
+        if ($pending) {
+            $self->stream_pending_state( $stream_id, $new_state );
+        }
+        else {
+            $self->{on_change_state}->( $stream_id, $s->{state}, $new_state )
+              if exists $self->{on_change_state};
 
-        $s->{state} = $new_state;
+            $s->{state} = $new_state;
 
-        # Exec callbacks for new state
-        $s->{cb}->{ $s->{state} }->()
-          if exists $s->{cb} && exists $s->{cb}->{ $s->{state} };
+            # Exec callbacks for new state
+            $s->{cb}->{ $s->{state} }->()
+              if exists $s->{cb} && exists $s->{cb}->{ $s->{state} };
 
-        # Cleanup
-        if ( $new_state == CLOSED ) {
-            $s = $self->{streams}->{$stream_id} = { state => CLOSED };
+            # Cleanup
+            if ( $new_state == CLOSED ) {
+                $s = $self->{streams}->{$stream_id} = { state => CLOSED };
+            }
         }
     }
 
     $s->{state};
+}
+
+sub stream_pending_state {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+    $s->{pending_state} = shift if @_;
+    $s->{pending_state};
 }
 
 sub stream_cb {
@@ -87,6 +104,18 @@ sub stream_data {
     $s->{data};
 }
 
+# Header Block -- The entire set of encoded header field representations
+sub stream_header_block {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+
+    $s->{header_block} .= shift if @_;
+
+    $s->{header_block};
+}
+
 sub stream_headers {
     my $self      = shift;
     my $stream_id = shift;
@@ -101,6 +130,14 @@ sub stream_headers_done {
     my $s = $self->{streams}->{$stream_id};
     tracer->debug("Headers done for stream $stream_id\n");
 
+    my $res =
+      headers_decode( $self, \$s->{header_block}, 0,
+        length $s->{header_block} );
+    return undef unless defined $res;
+
+    # Clear header_block
+    $s->{header_block} = '';
+
     my $rs = $self->decode_context->{reference_set};
     my $eh = $self->decode_context->{emitted_headers};
 
@@ -112,8 +149,10 @@ sub stream_headers_done {
     }
     $s->{headers} = [ $h->flatten ];
 
-    # Clear emitted headers;
+    # Clear emitted headers
     $self->decode_context->{emitted_headers} = [];
+
+    return 1;
 }
 
 1;

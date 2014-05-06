@@ -217,7 +217,8 @@ sub headers_decode {
             if ( $f == 0x40 ) {
                 add_to_ht( $context, $key, $value );
             }
-            tracer->debug("\tLITERAL(new) HEADER\t$key: $value\n");
+            tracer->debug( sprintf "\tLITERAL(new) HEADER\t%s: %s\n",
+                $key, substr( $value, 0, 30 ) );
 
             $offset += 1 + $key_size + $value_size;
         }
@@ -302,18 +303,7 @@ sub headers_decode {
 
 sub headers_encode {
     my ( $context, $headers ) = @_;
-    my @res          = ();
-    my $res          = '';
-    my $store_result = sub {
-        my $data = shift;
-        if ( length($res) + length($data) > MAX_PAYLOAD_SIZE ) {
-            push @res, $res;
-            $res = $data;
-        }
-        else {
-            $res .= $data;
-        }
-    };
+    my $res = '';
     my %hlist;
     my @headers;
     my %exclude;
@@ -343,7 +333,7 @@ sub headers_encode {
 
             # This request has not enough headers in common with the previous
             # request
-            $store_result->( pack( 'C', 0x30 ) );
+            $res .= pack( 'C', 0x30 );
             $rs = $context->{reference_set} = {};
             %exclude = ();
             last;
@@ -365,7 +355,7 @@ sub headers_encode {
               && $ht->[$i]->[1] eq $value;
             my $hdr = int_encode( $i + 1, 7 );
             vec( $hdr, 7, 1 ) = 1;
-            $store_result->($hdr);
+            $res .= $hdr;
             next HLOOP;
         }
 
@@ -375,7 +365,7 @@ sub headers_encode {
               && !exists $rstable{ $header . ' ' . $value };
             my $hdr = int_encode( $i + 1, 6 );
             vec( $hdr, 3, 2 ) = 1;
-            $store_result->( $hdr . str_encode($value) );
+            $res .= $hdr . str_encode($value);
             next HLOOP;
         }
 
@@ -384,7 +374,7 @@ sub headers_encode {
             my $hdr =
               int_encode( @$ht + $rstable{ $header . ' ' . $value }, 7 );
             vec( $hdr, 7, 1 ) = 1;
-            $store_result->($hdr);
+            $res .= $hdr;
 
         }
 
@@ -393,21 +383,20 @@ sub headers_encode {
         elsif ( exists $rstable{ $header . ' ' } ) {
             my $hdr = int_encode( @$ht + $rstable{ $header . ' ' }, 6 );
             vec( $hdr, 3, 2 ) = 1;
-            $store_result->( $hdr . str_encode($value) );
+            $res .= $hdr . str_encode($value);
         }
 
         # 4.3.1 Literal Header Field with Incremental Indexing
         # (New Name)
         else {
             my $hdr = pack( 'C', 0x40 );
-            $store_result->( $hdr . str_encode($header) . str_encode($value) );
+            $res .= $hdr . str_encode($header) . str_encode($value);
         }
 
         add_to_ht( $context, $header, $value );
     }
 
-    push @res, $res;
-    return @res;
+    return $res;
 }
 
 1;

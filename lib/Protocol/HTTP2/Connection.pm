@@ -156,15 +156,34 @@ sub state_machine {
     my $cln2srv = ( $self->{type} == SERVER && $act eq 'recv' )
       || ( $self->{type} == CLIENT && $act eq 'send' );
 
+    # Do we expect CONTINUATION after this frame?
+    my $pending = ( $type == HEADERS || $type == PUSH_PROMISE )
+      && !( $flags & END_HEADERS );
+
+    # Wait until all CONTINUATION frames arrive
+    if ( my $ps = $self->stream_pending_state($stream_id) ) {
+        if ( $type != CONTINUATION ) {
+            tracer->error(
+                sprintf "invalid frame type %s. Expected CONTINUATION frame\n",
+                const_name( "frame_types", $type )
+            );
+            $self->error(PROTOCOL_ERROR);
+        }
+        elsif ( $flags & END_HEADERS ) {
+            $self->stream_pending_state( $stream_id, undef );
+            $self->stream_state( $stream_id, $ps );
+        }
+    }
+
     # State machine
     # IDLE
-    if ( $prev_state == IDLE ) {
+    elsif ( $prev_state == IDLE ) {
         if ( $type == HEADERS && $cln2srv ) {
             $self->stream_state( $stream_id,
-                ( $flags & END_STREAM ) ? HALF_CLOSED : OPEN );
+                ( $flags & END_STREAM ) ? HALF_CLOSED : OPEN, $pending );
         }
         elsif ( $type == PUSH_PROMISE && $srv2cln ) {
-            $self->stream_state( $stream_id, RESERVED );
+            $self->stream_state( $stream_id, RESERVED, $pending );
         }
         else {
             tracer->error(
@@ -181,7 +200,7 @@ sub state_machine {
         if (   ( $flags & END_STREAM )
             && ( $type == DATA || $type == HEADERS ) )
         {
-            $self->stream_state( $stream_id, HALF_CLOSED );
+            $self->stream_state( $stream_id, HALF_CLOSED, $pending );
         }
         elsif ( $type == RST_STREAM ) {
             $self->stream_state( $stream_id, CLOSED );
@@ -195,7 +214,7 @@ sub state_machine {
         }
         elsif ( $type == HEADERS && $srv2cln ) {
             $self->stream_state( $stream_id,
-                ( $flags & END_STREAM ) ? CLOSED : HALF_CLOSED );
+                ( $flags & END_STREAM ) ? CLOSED : HALF_CLOSED, $pending );
         }
         elsif ( $type != PRIORITY && $cln2srv ) {
             tracer->error("invalid frame $type for state RESERVED");
@@ -208,10 +227,9 @@ sub state_machine {
         if (   ( $type == RST_STREAM )
             || ( ( $flags & END_STREAM ) && $srv2cln ) )
         {
-            $self->stream_state( $stream_id, CLOSED );
+            $self->stream_state( $stream_id, CLOSED, $pending );
         }
-        elsif (
-            ( !grep { $type == $_ } ( CONTINUATION, WINDOW_UPDATE, PRIORITY ) )
+        elsif ( ( !grep { $type == $_ } ( WINDOW_UPDATE, PRIORITY ) )
             && $cln2srv )
         {
             tracer->error( sprintf "invalid frame %s for state HALF CLOSED\n",
@@ -235,31 +253,35 @@ sub state_machine {
 sub send {
     my ( $self, $stream_id, $headers, $data ) = @_;
 
-    my ( $first, @rest ) = headers_encode( $self->encode_context, $headers );
+    my $header_block = headers_encode( $self->encode_context, $headers );
 
     my $flags = defined $data ? 0 : END_STREAM;
-    $flags |= END_HEADERS unless @rest;
+    $flags |= END_HEADERS if length($header_block) <= MAX_PAYLOAD_SIZE;
 
     $self->enqueue(
-        $self->frame_encode( HEADERS, $flags, $stream_id, $first ) );
-    while (@rest) {
-        my $hdr = shift @rest;
-        my $flags = @rest ? 0 : END_HEADERS;
+        $self->frame_encode( HEADERS, $flags,
+            $stream_id, \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+        )
+    );
+    while ( length($header_block) > 0 ) {
+        my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? 0 : END_HEADERS;
         $self->enqueue(
-            $self->frame_encode( CONTINUATION, $flags, $stream_id, $hdr ) );
+            $self->frame_encode( CONTINUATION, $flags, $stream_id,
+                \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+            )
+        );
     }
 
     return unless defined $data;
 
-    while ( length($data) > MAX_PAYLOAD_SIZE ) {
+    while ( length($data) > 0 ) {
+        my $flags = length($data) <= MAX_PAYLOAD_SIZE ? END_STREAM : 0;
         $self->enqueue(
-            $self->frame_encode( DATA, 0, $stream_id,
-                substr( $data, 0, MAX_PAYLOAD_SIZE, '' )
+            $self->frame_encode( DATA, $flags,
+                $stream_id, \substr( $data, 0, MAX_PAYLOAD_SIZE, '' )
             )
         );
     }
-    $self->enqueue(
-        $self->frame_encode( DATA, END_STREAM, $stream_id, $data ) );
 }
 
 sub error {

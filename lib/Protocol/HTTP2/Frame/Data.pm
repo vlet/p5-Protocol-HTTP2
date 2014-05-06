@@ -69,9 +69,9 @@ sub decode {
 }
 
 sub encode {
-    my ( $con, $flags_ref, $stream_id, $data ) = @_;
+    my ( $con, $flags_ref, $stream_id, $data_ref ) = @_;
 
-    return $data;
+    return $$data_ref;
 }
 
 1;
