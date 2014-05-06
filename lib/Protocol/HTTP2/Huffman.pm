@@ -32,10 +32,11 @@ sub huffman_decode {
             $c, length($bin)
         )
     ) if length($bin) - $c > 8;
-    tracer->warning( "no huffman code 256 at the end of encoded string '$s': "
-          . substr( $bin, $c )
-          . "\n" )
-      if $hcodes{256} !~ /^@{[ substr($bin, $c) ]}/;
+    tracer->warning(
+        sprintf "no huffman code 256 at the end of encoded string '%s': %s\n",
+        substr( $s,   0, 30 ),
+        substr( $bin, $c )
+    ) if $hcodes{256} !~ /^@{[ substr($bin, $c) ]}/;
     return $s;
 }
 
