@@ -28,8 +28,7 @@ sub decode {
 
 sub encode {
     my ( $con, $flags_ref, $stream, $data ) = @_;
-    require Carp;
-    Carp::croak("Rst_stream frame encoder not implemented");
+    return pack 'N', $data;
 }
 
 1;
