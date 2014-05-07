@@ -1,7 +1,12 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
-
+    - client-tls-anyevent.pl with NPN/ALPN support and server's push handling
+    - fixed error handling (send only one GOAWAY)
+    - fixed PUSH_RPOMISE/CONTINUATION state and headers handling
+    - implemented PUSH_PROMISE decoder
+    - implemented RST_STREAM encoder
+    - server-tls-anyevent.pl with NPN/ALPN support
     - fixed Connection's send(): set END_STREAM flag for last DATA frame
     - fixed HEADERS/CONTINUATION logic
     - pending state change until all CONTINUATION frames received
