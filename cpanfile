@@ -13,4 +13,5 @@ on 'test' => sub {
 on 'develop' => sub {
     requires 'XML::LibXML';
     requires 'AnyEvent';
+    requires 'Net::SSLeay', '> 1.45';
 };
