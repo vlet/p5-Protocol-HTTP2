@@ -65,4 +65,4 @@ it under the same terms as Perl itself.
 
 # AUTHOR
 
-Vladimir Lettiev <thecrux@gmail.com<gt>
+Vladimir Lettiev <thecrux@gmail.com>

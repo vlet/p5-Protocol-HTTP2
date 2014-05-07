@@ -1,6 +1,8 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+
+0.03 2014-05-07T18:05:50Z
     - client-tls-anyevent.pl with NPN/ALPN support and server's push handling
     - fixed error handling (send only one GOAWAY)
     - fixed PUSH_RPOMISE/CONTINUATION state and headers handling

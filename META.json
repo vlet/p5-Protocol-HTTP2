@@ -1,7 +1,7 @@
 {
    "abstract" : "HTTP/2 protocol (draft 12) implementation",
    "author" : [
-      "Vladimir Lettiev <thecrux@gmail.com<gt>"
+      "Vladimir Lettiev <thecrux@gmail.com>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v0.13.0, CPAN::Meta::Converter version 2.133380",
@@ -70,8 +70,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "0.02",
-   "x_contributors" : [
-      "Vladimir Lettiev <thecrux@gmail.com>"
-   ]
+   "version" : "0.03"
 }
