@@ -122,7 +122,7 @@ sub finish {
         $self->frame_encode( GOAWAY, 0, 0,
             [ $self->{last_peer_stream}, $self->{error} ]
         )
-    );
+    ) unless $self->{shutdown};
     $self->{shutdown} = 1;
 }
 
@@ -145,8 +145,9 @@ sub preface {
 sub state_machine {
     my ( $self, $act, $type, $flags, $stream_id ) = @_;
 
-    my $s          = $self->{streams}->{$stream_id};
-    my $prev_state = $s->{state};
+    my $promised_sid = $self->stream_promised_sid($stream_id);
+
+    my $prev_state = $self->{streams}->{ $promised_sid || $stream_id }->{state};
 
     # Direction server->client
     my $srv2cln = ( $self->{type} == SERVER && $act eq 'send' )
@@ -160,6 +161,14 @@ sub state_machine {
     my $pending = ( $type == HEADERS || $type == PUSH_PROMISE )
       && !( $flags & END_HEADERS );
 
+    #    tracer->debug(sprintf
+    #        "\e[0;31mStream state: %s %s for stream %i\e[m\n",
+    #        const_name("frame_types", $type),
+    #        const_name("states", $prev_state),
+    #        $promised_sid || $stream_id,
+    #        $stream_id,
+    #    );
+
     # Wait until all CONTINUATION frames arrive
     if ( my $ps = $self->stream_pending_state($stream_id) ) {
         if ( $type != CONTINUATION ) {
@@ -170,8 +179,9 @@ sub state_machine {
             $self->error(PROTOCOL_ERROR);
         }
         elsif ( $flags & END_HEADERS ) {
-            $self->stream_pending_state( $stream_id, undef );
-            $self->stream_state( $stream_id, $ps );
+            $self->stream_promised_sid( $stream_id, undef ) if $promised_sid;
+            $self->stream_pending_state( $promised_sid || $stream_id, undef );
+            $self->stream_state( $promised_sid || $stream_id, $ps );
         }
     }
 
@@ -183,11 +193,13 @@ sub state_machine {
                 ( $flags & END_STREAM ) ? HALF_CLOSED : OPEN, $pending );
         }
         elsif ( $type == PUSH_PROMISE && $srv2cln ) {
-            $self->stream_state( $stream_id, RESERVED, $pending );
+            $self->stream_state( $promised_sid, RESERVED, $pending );
+            $self->stream_promised_sid( $stream_id, undef )
+              if $flags & END_HEADERS;
         }
         else {
             tracer->error(
-                sprintf "invalid frame type %s for current stream state %s",
+                sprintf "invalid frame type %s for current stream state %s\n",
                 const_name( "frame_types", $type ),
                 const_name( "states",      $prev_state )
             );
@@ -240,11 +252,11 @@ sub state_machine {
 
     # CLOSED
     elsif ( $prev_state == CLOSED ) {
-        tracer->error("stream is closed");
+        tracer->error("stream is closed\n");
         $self->error(STREAM_CLOSED);
     }
     else {
-        tracer->error("oops!");
+        tracer->error("oops!\n");
         $self->error(INTERNAL_ERROR);
     }
 }
@@ -286,7 +298,7 @@ sub send {
 
 sub error {
     my $self = shift;
-    if (@_) {
+    if ( @_ && !$self->{shutdown} ) {
         $self->{error} = shift;
         $self->{on_error}->( $self->{error} ) if exists $self->{on_error};
         $self->finish;

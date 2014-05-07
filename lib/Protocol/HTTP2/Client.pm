@@ -2,14 +2,52 @@ package Protocol::HTTP2::Client;
 use strict;
 use warnings;
 use Protocol::HTTP2::Connection;
-use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints);
+use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
+  :errors);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
 
 sub new {
     my ( $class, %opts ) = @_;
+    my $con;
+    if ( exists $opts{on_push} ) {
+        my $cb = delete $opts{on_push};
+        $opts{on_new_peer_stream} = sub {
+            my $stream_id = shift;
+            my $pp_headers;
+
+            $con->stream_cb(
+                $stream_id,
+                RESERVED,
+                sub {
+                    my $res = $cb->( $con->stream_pp_headers($stream_id) );
+                    if ( $res && ref $cb eq 'CODE' ) {
+                        $con->stream_cb(
+                            $stream_id,
+                            CLOSED,
+                            sub {
+                                $res->(
+                                    $con->stream_headers($stream_id),
+                                    $con->stream_data($stream_id),
+                                );
+                            }
+                        );
+                    }
+                    else {
+                        $con->enqueue(
+                            $con->frame_encode( RST_STREAM, 0, $stream_id,
+                                REFUSED_STREAM
+                            )
+                        );
+                    }
+                }
+            );
+        };
+    }
+
+    $con = Protocol::HTTP2::Connection->new( CLIENT, %opts );
     bless {
-        con   => Protocol::HTTP2::Connection->new( CLIENT, %opts ),
+        con   => $con,
         input => '',
     }, $class;
 }

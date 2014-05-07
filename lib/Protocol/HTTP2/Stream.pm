@@ -30,7 +30,7 @@ sub new_peer_stream {
     $self->{last_peer_stream} = $stream_id;
     $self->{streams}->{$stream_id} = { 'state' => IDLE };
     $self->{on_new_peer_stream}->($stream_id)
-      if exists $self->{on_new_peer_stream} && $self->{type} == SERVER;
+      if exists $self->{on_new_peer_stream};
 
     return $self->{last_peer_stream};
 }
@@ -85,6 +85,15 @@ sub stream_pending_state {
     $s->{pending_state};
 }
 
+sub stream_promised_sid {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+    $s->{promised_sid} = shift if @_;
+    $s->{promised_sid};
+}
+
 sub stream_cb {
     my ( $self, $stream_id, $state, $cb ) = @_;
 
@@ -123,16 +132,25 @@ sub stream_headers {
     $self->{streams}->{$stream_id}->{headers};
 }
 
+sub stream_pp_headers {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{pp_headers};
+}
+
 sub stream_headers_done {
     my $self      = shift;
     my $stream_id = shift;
     return undef unless exists $self->{streams}->{$stream_id};
     my $s = $self->{streams}->{$stream_id};
-    tracer->debug("Headers done for stream $stream_id\n");
 
     my $res =
       headers_decode( $self, \$s->{header_block}, 0,
         length $s->{header_block} );
+
+    tracer->debug("Headers done for stream $stream_id\n");
+
     return undef unless defined $res;
 
     # Clear header_block
@@ -147,7 +165,14 @@ sub stream_headers_done {
         next if grep { $_ eq $value } $h->get_all($key);
         $h->add( $key, $value );
     }
-    $s->{headers} = [ $h->flatten ];
+
+    if ( $s->{promised_sid} ) {
+        $self->{streams}->{ $s->{promised_sid} }->{pp_headers} =
+          [ $h->flatten ];
+    }
+    else {
+        $s->{headers} = [ $h->flatten ];
+    }
 
     # Clear emitted headers
     $self->decode_context->{emitted_headers} = [];
