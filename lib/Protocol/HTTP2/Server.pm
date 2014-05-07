@@ -28,11 +28,12 @@ sub new {
           }
     }
 
-    $con = Protocol::HTTP2::Connection->new( SERVER, %opts ),
-      bless {
+    $con = Protocol::HTTP2::Connection->new( SERVER, %opts );
+
+    bless {
         con   => $con,
         input => '',
-      }, $class;
+    }, $class;
 }
 
 my @must = (qw(:status));
