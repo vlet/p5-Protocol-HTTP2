@@ -1,6 +1,8 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+
+0.04 2014-05-08T18:22:24Z
     - enable Upgrade in server-anyevent.pl example
     - implemented Upgrade support
     - fixed build/tests on windows

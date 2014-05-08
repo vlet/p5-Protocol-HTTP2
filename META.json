@@ -36,6 +36,7 @@
       "develop" : {
          "requires" : {
             "AnyEvent" : "0",
+            "Net::SSLeay" : "> 1.45",
             "Test::CPAN::Meta" : "0",
             "Test::MinimumVersion::Fast" : "0.04",
             "Test::Pod" : "1.41",
@@ -70,5 +71,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "0.03"
+   "version" : "0.04"
 }
