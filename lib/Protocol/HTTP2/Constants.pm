@@ -26,7 +26,7 @@ use constant {
     SERVER => 2,
 
     # Preface string
-    PREFACE => "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n",
+    PREFACE => "PRI * HTTP/2.0\x0d\x0a\x0d\x0aSM\x0d\x0a\x0d\x0a",
 
     # Frame types
     DATA          => 0,

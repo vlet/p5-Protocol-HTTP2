@@ -9,7 +9,7 @@ BEGIN {
 
 subtest 'decode_continuation_request' => sub {
 
-    open my $fh, '<', 't/continuation.request.data' or die $!;
+    open my $fh, '<:raw', 't/continuation.request.data' or die $!;
     my $data = do { local $/; <$fh> };
 
     my $con = Protocol::HTTP2::Connection->new( SERVER,
