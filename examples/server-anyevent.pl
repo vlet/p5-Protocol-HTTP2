@@ -55,6 +55,9 @@ tcp_server $host, $port, sub {
                 data => $message,
             );
         },
+
+        # Accept HTTP/1.1 Upgrade header
+        upgrade => 1,
     );
 
     # First send settings to peer
