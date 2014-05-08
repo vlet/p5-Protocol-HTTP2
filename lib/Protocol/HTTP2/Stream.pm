@@ -129,6 +129,7 @@ sub stream_headers {
     my $self      = shift;
     my $stream_id = shift;
     return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{headers} = shift if @_;
     $self->{streams}->{$stream_id}->{headers};
 }
 
@@ -159,6 +160,7 @@ sub stream_headers_done {
     my $rs = $self->decode_context->{reference_set};
     my $eh = $self->decode_context->{emitted_headers};
 
+    # TODO: http2 -> http/1.1 headers conversion
     my $h = Hash::MultiValue->new(@$eh);
     for my $kv_str ( keys %$rs ) {
         my ( $key, $value ) = @{ $rs->{$kv_str} };

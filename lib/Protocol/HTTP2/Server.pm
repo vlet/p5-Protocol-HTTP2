@@ -2,7 +2,8 @@ package Protocol::HTTP2::Server;
 use strict;
 use warnings;
 use Protocol::HTTP2::Connection;
-use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints);
+use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
+  :settings :limits);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
 
@@ -75,6 +76,39 @@ sub feed {
     my $len;
     my $con = $self->{con};
     tracer->debug( "got " . length($chunk) . " bytes on a wire\n" );
+
+    if ( $con->upgrade ) {
+        my @headers;
+        my $len =
+          $con->decode_upgrade_request( \$self->{input}, $offset, \@headers );
+        $con->shutdown(1) unless defined $len;
+        return unless $len;
+
+        substr( $self->{input}, $offset, $len ) = '';
+        $con->upgrade(0);
+
+        $con->enqueue(
+            $con->upgrade_response,
+            $con->frame_encode( SETTINGS, 0, 0,
+                {
+                    &SETTINGS_MAX_CONCURRENT_STREAMS =>
+                      DEFAULT_MAX_CONCURRENT_STREAMS
+                }
+              )
+
+        );
+
+        # The HTTP/1.1 request that is sent prior to upgrade is assigned stream
+        # identifier 1 and is assigned default priority values (Section 5.3.5).
+        # Stream 1 is implicitly half closed from the client toward the server,
+        # since the request is completed as an HTTP/1.1 request.  After
+        # commencing the HTTP/2 connection, stream 1 is used for the response.
+
+        $con->new_peer_stream(1);
+        $con->stream_headers( 1, \@headers );
+        $con->stream_state( 1, HALF_CLOSED );
+    }
+
     if ( !$con->preface ) {
         return unless $len = $con->preface_decode( \$self->{input}, $offset );
         tracer->debug("got preface\n");

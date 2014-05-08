@@ -7,10 +7,12 @@ use Protocol::HTTP2::Constants
 use Protocol::HTTP2::HeaderCompression qw(headers_encode);
 use Protocol::HTTP2::Frame;
 use Protocol::HTTP2::Stream;
+use Protocol::HTTP2::Upgrade;
 use Protocol::HTTP2::Trace qw(tracer);
 
 # Mixin
-our @ISA = qw(Protocol::HTTP2::Frame Protocol::HTTP2::Stream);
+our @ISA =
+  qw(Protocol::HTTP2::Frame Protocol::HTTP2::Stream Protocol::HTTP2::Upgrade);
 
 sub new {
     my ( $class, $type, %opts ) = @_;
@@ -79,9 +81,12 @@ sub new {
 
         # get preface
         preface => 0,
+
+        # perform upgrade
+        upgrade => 0,
     }, $class;
 
-    for (qw(on_change_state on_new_peer_stream on_error)) {
+    for (qw(on_change_state on_new_peer_stream on_error upgrade)) {
         $self->{$_} = $opts{$_} if exists $opts{$_};
     }
 
@@ -94,7 +99,7 @@ sub new {
                   DEFAULT_MAX_CONCURRENT_STREAMS
             }
         )
-    );
+    ) unless $self->upgrade;
     $self;
 }
 
@@ -140,6 +145,12 @@ sub preface {
     my $self = shift;
     $self->{preface} = shift if @_;
     $self->{preface};
+}
+
+sub upgrade {
+    my $self = shift;
+    $self->{upgrade} = shift if @_;
+    $self->{upgrade};
 }
 
 sub state_machine {
