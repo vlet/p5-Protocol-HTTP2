@@ -2,6 +2,7 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - required MIME::Base64 >= 3.11 (encode_base64url and decode_base64url)
     - HTTP/1.1 Upgrade for client
 
 0.04 2014-05-08T18:22:24Z
