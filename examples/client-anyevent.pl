@@ -17,7 +17,10 @@ my $client = Protocol::HTTP2::Client->new(
     on_error => sub {
         my $error = shift;
         printf "Error occured: %s\n", const_name( "errors", $error );
-    }
+    },
+
+    # Perform HTTP/1.1 Upgrade
+    upgrade => 1,
 );
 
 my $host = '127.0.0.1';
