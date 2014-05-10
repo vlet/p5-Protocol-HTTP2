@@ -2,9 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - HTTP/1.1 Upgrade for client
+
 0.04 2014-05-08T18:22:24Z
     - enable Upgrade in server-anyevent.pl example
-    - implemented Upgrade support
+    - implemented HTTP/1.1 Upgrade (server)
     - fixed build/tests on windows
     - update cpanfile (Net::SSLeay > 1.45 for NPN)
     - update state doc
