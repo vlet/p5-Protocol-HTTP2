@@ -62,13 +62,27 @@ sub request {
     my $con = $self->{con};
 
     my $stream_id = $con->new_stream;
-    $con->send(
-        $stream_id,
-        [
-            ( map { $_ => $h{$_} } @must ),
-            exists $h{headers} ? @{ $h{headers} } : ()
-        ]
-    );
+
+    if ( $con->upgrade && !exists $self->{sent_upgrade} ) {
+        $con->enqueue(
+            $con->upgrade_request(
+                ( map { $_ => $h{$_} } @must ),
+                headers => exists $h{headers} ? $h{headers} : []
+            )
+        );
+        $self->{sent_upgrade} = 1;
+        $con->stream_state( $stream_id, HALF_CLOSED );
+    }
+    else {
+
+        $con->send(
+            $stream_id,
+            [
+                ( map { $_ => $h{$_} } @must ),
+                exists $h{headers} ? @{ $h{headers} } : ()
+            ]
+        );
+    }
 
     $con->stream_cb(
         $stream_id,
@@ -103,6 +117,14 @@ sub feed {
     my $len;
     my $con = $self->{con};
     tracer->debug( "got " . length($chunk) . " bytes on a wire\n" );
+    if ( $con->upgrade ) {
+        $len = $con->decode_upgrade_response( \$self->{input}, $offset );
+        $con->shutdown(1) unless defined $len;
+        return unless $len;
+        $offset += $len;
+        $con->upgrade(0);
+        $con->enqueue( $con->preface_encode );
+    }
     while ( $len = $con->frame_decode( \$self->{input}, $offset ) ) {
         tracer->debug("decoded frame at $offset, length $len\n");
         $offset += $len;

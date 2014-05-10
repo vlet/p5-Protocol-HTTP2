@@ -127,12 +127,14 @@ sub finish {
         $self->frame_encode( GOAWAY, 0, 0,
             [ $self->{last_peer_stream}, $self->{error} ]
         )
-    ) unless $self->{shutdown};
-    $self->{shutdown} = 1;
+    ) unless $self->shutdown;
+    $self->shutdown(1);
 }
 
 sub shutdown {
-    shift->{'shutdown'};
+    my $self = shift;
+    $self->{shutdown} = shift if @_;
+    $self->{shutdown};
 }
 
 sub goaway {
