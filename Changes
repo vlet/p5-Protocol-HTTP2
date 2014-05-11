@@ -2,6 +2,8 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.05 2014-05-11T11:19:57Z
+
     - implemented flow control
     - implemented WINDOW_UPDATE encoder/decoder
     - fixed MAX_PAYLOAD_SIZE constant
