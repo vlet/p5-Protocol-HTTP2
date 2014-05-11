@@ -47,14 +47,14 @@ never become production or even finished.
     | Preface                 |    +    |
     | Headers (de)compression |    +    |
     | Stream states           |    +    |
-    | Flow control            |    -    |
-    | Server push             |    ~    |
+    | Flow control            |    ±    |
+    | Server push             |    ±    |
     | Connect method          |    -    |
 
 
     | Frame           | encoder | decoder |
     | --------------- |:-------:|:-------:|
-    | DATA            |    ~    |    +    |
+    | DATA            |    ±    |    +    |
     | HEADERS         |    +    |    +    |
     | PRIORITY        |    -    |    -    |
     | RST_STREAM      |    +    |    +    |
@@ -62,17 +62,17 @@ never become production or even finished.
     | PUSH_PROMISE    |    -    |    +    |
     | PING            |    -    |    -    |
     | GOAWAY          |    +    |    +    |
-    | WINDOW_UPDATE   |    -    |    -    |
-    | CONTINUATION    |    ~    |    +    |
+    | WINDOW_UPDATE   |    +    |    +    |
+    | CONTINUATION    |    ±    |    +    |
     | ALTSVC          |    -    |    -    |
-    | BLOCKED         |    -    |    ~    |
+    | BLOCKED         |    +    |    ±    |
 
 
 =over
 
 =item - -- not implemeted
 
-=item ~ -- incomplete
+=item ± -- incomplete
 
 =item + -- implemented (may even work)
 
