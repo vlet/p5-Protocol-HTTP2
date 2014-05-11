@@ -2,6 +2,10 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - implemented flow control
+    - implemented WINDOW_UPDATE encoder/decoder
+    - fixed MAX_PAYLOAD_SIZE constant
+    - fixed runtime error in RST_STREAM
     - required MIME::Base64 >= 3.11 (encode_base64url and decode_base64url)
     - HTTP/1.1 Upgrade for client
 
