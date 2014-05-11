@@ -34,11 +34,7 @@ sub new {
                         );
                     }
                     else {
-                        $con->enqueue(
-                            $con->frame_encode( RST_STREAM, 0, $stream_id,
-                                REFUSED_STREAM
-                            )
-                        );
+                        $con->stream_error( $stream_id, REFUSED_STREAM );
                     }
                 }
             );
@@ -75,12 +71,13 @@ sub request {
     }
     else {
 
-        $con->send(
+        $con->send_headers(
             $stream_id,
             [
                 ( map { $_ => $h{$_} } @must ),
                 exists $h{headers} ? @{ $h{headers} } : ()
-            ]
+            ],
+            1
         );
     }
 

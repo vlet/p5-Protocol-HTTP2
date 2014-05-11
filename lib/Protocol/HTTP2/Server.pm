@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Protocol::HTTP2::Connection;
 use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
-  :settings :limits);
+  :settings :limits const_name);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
 
@@ -46,14 +46,15 @@ sub response {
 
     my $con = $self->{con};
 
-    $con->send(
+    $con->send_headers(
         $h{stream_id},
         [
             ( map { $_ => $h{$_} } @must ),
             exists $h{headers} ? @{ $h{headers} } : ()
         ],
-        exists $h{data} ? $h{data} : ()
+        exists $h{data} ? 0 : 1
     );
+    $con->send_data( $h{stream_id}, $h{data} ) if exists $h{data};
 
     return $self;
 }
@@ -66,6 +67,15 @@ sub next_frame {
     my $self  = shift;
     my $frame = $self->{con}->dequeue;
     tracer->debug("send one frame to wire\n") if $frame;
+    if ($frame) {
+        my ( $length, $type, $flags, $stream_id ) =
+          unpack( 'nC2N', substr( $frame, 0, 8 ) );
+        tracer->debug(
+            sprintf "\ttype(%s), length(%i), flags(%08b), sid(%i)\n",
+            const_name( 'frame_types', $type ),
+            $length, $flags, $stream_id
+        );
+    }
     return $frame;
 }
 
