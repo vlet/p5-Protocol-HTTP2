@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Rst_stream;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors :states);
+use Protocol::HTTP2::Constants qw(const_name :flags :errors :states);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
