@@ -5,7 +5,10 @@ use constant {
 
     # Header Compression
     MAX_INT_SIZE     => 4,
-    MAX_PAYLOAD_SIZE => 1 << 14,
+    MAX_PAYLOAD_SIZE => ( 1 << 14 ) - 1,
+
+    # Flow control
+    MAX_FCW_SIZE => ( 1 << 31 ) - 1,
 
     # Settings defaults
     DEFAULT_HEADER_TABLE_SIZE      => 4_096,
@@ -101,7 +104,7 @@ our %EXPORT_TAGS = (
           SETTINGS_COMPRESS_DATA)
     ],
     limits => [
-        qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE
+        qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE MAX_FCW_SIZE
           DEFAULT_HEADER_TABLE_SIZE
           DEFAULT_MAX_CONCURRENT_STREAMS
           DEFAULT_ENABLE_PUSH

@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Data;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors :settings);
+use Protocol::HTTP2::Constants qw(:flags :errors :settings :limits);
 use Protocol::HTTP2::Trace qw(tracer);
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use IO::Compress::Gzip qw(gzip $GzipError);
@@ -46,6 +46,20 @@ sub decode {
         $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
+
+    my $fcw = $con->fcw_recv( -$dblock_size );
+    my $stream_fcw =
+      $con->stream_fcw_recv( $frame_ref->{stream}, -$dblock_size );
+    if ( $fcw < 0 || $stream_fcw < 0 ) {
+        tracer->debug(
+            "received data overflow flow control window: $fcw|$stream_fcw\n");
+        $con->stream_error( $frame_ref->{stream}, FLOW_CONTROL_ERROR );
+        return $length;
+    }
+    $con->fcw_update() if $fcw < MAX_PAYLOAD_SIZE;
+    $con->stream_fcw_update( $frame_ref->{stream} )
+      if $stream_fcw < MAX_PAYLOAD_SIZE
+      && !( $frame_ref->{flags} & END_STREAM );
 
     return $length unless $dblock_size;
 

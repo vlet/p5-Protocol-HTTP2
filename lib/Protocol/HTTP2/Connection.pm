@@ -84,6 +84,10 @@ sub new {
 
         # perform upgrade
         upgrade => 0,
+
+        # flow control
+        fcw_send => DEFAULT_INITIAL_WINDOW_SIZE,
+        fcw_recv => DEFAULT_INITIAL_WINDOW_SIZE,
     }, $class;
 
     for (qw(on_change_state on_new_peer_stream on_error upgrade)) {
@@ -265,8 +269,11 @@ sub state_machine {
 
     # CLOSED
     elsif ( $prev_state == CLOSED ) {
-        tracer->error("stream is closed\n");
-        $self->error(STREAM_CLOSED);
+        if ( $type != WINDOW_UPDATE && $cln2srv ) {
+
+            tracer->error("stream is closed\n");
+            $self->error(STREAM_CLOSED);
+        }
     }
     else {
         tracer->error("oops!\n");
@@ -275,12 +282,12 @@ sub state_machine {
 }
 
 # TODO: move this to some other module
-sub send {
-    my ( $self, $stream_id, $headers, $data ) = @_;
+sub send_headers {
+    my ( $self, $stream_id, $headers, $end ) = @_;
 
     my $header_block = headers_encode( $self->encode_context, $headers );
 
-    my $flags = defined $data ? 0 : END_STREAM;
+    my $flags = $end ? END_STREAM : 0;
     $flags |= END_HEADERS if length($header_block) <= MAX_PAYLOAD_SIZE;
 
     $self->enqueue(
@@ -296,16 +303,37 @@ sub send {
             )
         );
     }
+}
 
-    return unless defined $data;
+sub send_data {
+    my ( $self, $stream_id, $data ) = @_;
+    while ( ( my $l = length($data) ) > 0 ) {
+        my $size = MAX_PAYLOAD_SIZE;
+        for ( $l, $self->fcw_send, $self->stream_fcw_send($stream_id) ) {
+            $size = $_ if $size > $_;
+        }
+        my $flags = $l == $size ? END_STREAM : 0;
 
-    while ( length($data) > 0 ) {
-        my $flags = length($data) <= MAX_PAYLOAD_SIZE ? END_STREAM : 0;
+        # Flow control
+        if ( $size == 0 ) {
+            $self->stream_blocked_data( $stream_id, $data );
+            last;
+        }
+        $self->fcw_send( -$size );
+        $self->stream_fcw_send( $stream_id, -$size );
+
         $self->enqueue(
             $self->frame_encode( DATA, $flags,
-                $stream_id, \substr( $data, 0, MAX_PAYLOAD_SIZE, '' )
+                $stream_id, \substr( $data, 0, $size, '' )
             )
         );
+    }
+}
+
+sub send_blocked {
+    my $self = shift;
+    for my $stream_id ( keys %{ $self->{streams} } ) {
+        $self->stream_send_blocked($stream_id);
     }
 }
 
@@ -320,15 +348,47 @@ sub error {
 }
 
 sub setting {
-    my ( $self, $setting ) = @_;
+    my $self    = shift;
+    my $setting = shift;
     return undef unless exists $self->{settings}->{$setting};
-    $self->{settings}->{$setting} = shift if @_ > 1;
+    $self->{settings}->{$setting} = shift if @_;
     return $self->{settings}->{$setting};
 }
 
 sub accept_settings {
     my $self = shift;
     $self->enqueue( $self->frame_encode( SETTINGS, ACK, 0, {} ) );
+}
+
+# Flow control windown of connection
+sub fcw_send {
+    shift->_fcw( 'send', @_ );
+}
+
+sub fcw_recv {
+    shift->_fcw( 'recv', @_ );
+}
+
+sub _fcw {
+    my $self = shift;
+    my $dir  = shift;
+
+    if (@_) {
+        $self->{ 'fcw_' . $dir } += shift;
+        tracer->debug( "fcw_$dir now is " . $self->{ 'fcw_' . $dir } . "\n" );
+    }
+    $self->{ 'fcw_' . $dir };
+}
+
+sub fcw_update {
+    my $self = shift;
+
+    # TODO: check size of data in memory
+    tracer->debug("update fcw recv of connection\n");
+    $self->fcw_recv(DEFAULT_INITIAL_WINDOW_SIZE);
+    $self->enqueue(
+        $self->frame_encode( WINDOW_UPDATE, 0, 0, DEFAULT_INITIAL_WINDOW_SIZE )
+    );
 }
 
 1;
