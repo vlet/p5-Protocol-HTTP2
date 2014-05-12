@@ -125,6 +125,18 @@ sub enqueue {
     push @{ $self->{queue} }, @frames;
 }
 
+sub enqueue_first {
+    my ( $self, @frames ) = @_;
+    my $i = 0;
+    for ( 0 .. $#{ $self->{queue} } ) {
+        last
+          if ( ( $self->frame_header_decode( \$self->{queue}->[$_], 0 ) )[1] !=
+            CONTINUATION );
+        $i++;
+    }
+    splice @{ $self->{queue} }, $i, 0, @frames;
+}
+
 sub finish {
     my $self = shift;
     $self->enqueue(
@@ -389,6 +401,11 @@ sub fcw_update {
     $self->enqueue(
         $self->frame_encode( WINDOW_UPDATE, 0, 0, DEFAULT_INITIAL_WINDOW_SIZE )
     );
+}
+
+sub ack_ping {
+    my ( $self, $payload_ref ) = @_;
+    $self->enqueue_first( $self->frame_encode( PING, ACK, 0, $payload_ref ) );
 }
 
 1;
