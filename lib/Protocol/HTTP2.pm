@@ -60,7 +60,7 @@ never become production or even finished.
     | RST_STREAM      |    +    |    +    |
     | SETTINGS        |    +    |    +    |
     | PUSH_PROMISE    |    -    |    +    |
-    | PING            |    -    |    -    |
+    | PING            |    +    |    +    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
     | CONTINUATION    |    ±    |    +    |
