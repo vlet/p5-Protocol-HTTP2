@@ -66,14 +66,13 @@ sub shutdown {
 sub next_frame {
     my $self  = shift;
     my $frame = $self->{con}->dequeue;
-    tracer->debug("send one frame to wire\n") if $frame;
     if ($frame) {
         my ( $length, $type, $flags, $stream_id ) =
-          unpack( 'nC2N', substr( $frame, 0, 8 ) );
+          $self->{con}->frame_header_decode( \$frame, 0 );
         tracer->debug(
-            sprintf "\ttype(%s), length(%i), flags(%08b), sid(%i)\n",
-            const_name( 'frame_types', $type ),
-            $length, $flags, $stream_id
+            sprintf "Send one frame to a wire:"
+              . " type(%s), length(%i), flags(%08b), sid(%i)\n",
+            const_name( 'frame_types', $type ), $length, $flags, $stream_id
         );
     }
     return $frame;

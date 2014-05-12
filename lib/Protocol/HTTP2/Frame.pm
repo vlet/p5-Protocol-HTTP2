@@ -64,12 +64,23 @@ sub preface_encode {
     PREFACE;
 }
 
+sub frame_header_decode {
+    my ( undef, $buf_ref, $buf_offset ) = @_;
+
+    my ( $length, $type, $flags, $stream_id ) =
+      unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
+
+    $length    &= 0x3FFF;
+    $stream_id &= 0x7FFF_FFFF;
+    return $length, $type, $flags, $stream_id;
+}
+
 sub frame_decode {
     my ( $con, $buf_ref, $buf_offset ) = @_;
     return 0 if length($$buf_ref) - $buf_offset < 8;
 
     my ( $length, $type, $flags, $stream_id ) =
-      unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
+      $con->frame_header_decode( $buf_ref, $buf_offset );
 
     # Unknown type of frame
     if ( !exists $frame_class{$type} ) {
@@ -77,9 +88,6 @@ sub frame_decode {
         $con->error(PROTOCOL_ERROR);
         return undef;
     }
-
-    $length    &= 0x3FFF;
-    $stream_id &= 0x7FFF_FFFF;
 
     return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
 
