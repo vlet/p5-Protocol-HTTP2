@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Rst_stream;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(const_name :flags :errors :states);
+use Protocol::HTTP2::Constants qw(const_name :flags :errors);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
@@ -19,9 +19,6 @@ sub decode {
     tracer->debug( "Receive reset stream with error code "
           . const_name( "errors", $code )
           . "\n" );
-
-    # Stream closed state
-    $con->stream_state( $frame_ref->{stream}, CLOSED );
 
     return $length;
 }
