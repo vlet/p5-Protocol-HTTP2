@@ -2,6 +2,10 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - implemented PING encoder/decoder
+    - fixed Rst_stream - unneeded state manipulation
+    - internal PH2Test test module
+
 0.05 2014-05-11T11:19:57Z
 
     - implemented flow control
