@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use Test::More;
+use lib 't/lib';
+use PH2Test;
 
 BEGIN {
     use_ok( 'Protocol::HTTP2::HeaderCompression',
@@ -8,33 +10,12 @@ BEGIN {
     );
 }
 
-sub iseq {
-    my ( $b1, $b2 ) = @_;
-    if ( $b1 eq $b2 ) {
-        return 1;
-    }
-    else {
-        print join ", ", map { sprintf "0x%x", $_ } unpack( "C*", $b1 );
-        print "\n not equal \n";
-        print join ", ", map { sprintf "0x%x", $_ } unpack( "C*", $b2 );
-        print "\n";
-        return 0;
-    }
-}
-
-sub hstr {
-    my $str = shift;
-    $str =~ s/\s//g;
-    my @a = ( $str =~ /../g );
-    return pack "C*", map { hex $_ } @a;
-}
-
 subtest 'int_encode' => sub {
-    ok iseq( int_encode( 0,     8 ), pack( "C",  0 ) );
-    ok iseq( int_encode( 0xFD,  8 ), pack( "C",  0xFD ) );
-    ok iseq( int_encode( 0xFF,  8 ), pack( "C*", 0xFF, 0x00 ) );
-    ok iseq( int_encode( 0x100, 8 ), pack( "C*", 0xFF, 0x01 ) );
-    ok iseq( int_encode( 1337,  5 ), pack( "C*", 31, 154, 10 ) );
+    ok binary_eq( int_encode( 0,     8 ), pack( "C",  0 ) );
+    ok binary_eq( int_encode( 0xFD,  8 ), pack( "C",  0xFD ) );
+    ok binary_eq( int_encode( 0xFF,  8 ), pack( "C*", 0xFF, 0x00 ) );
+    ok binary_eq( int_encode( 0x100, 8 ), pack( "C*", 0xFF, 0x01 ) );
+    ok binary_eq( int_encode( 1337,  5 ), pack( "C*", 31, 154, 10 ) );
 };
 
 subtest 'int_decode' => sub {
@@ -46,7 +27,7 @@ subtest 'int_decode' => sub {
 
 subtest 'str_encode' => sub {
 
-    ok iseq( str_encode('//ee'), hstr("8339 D6BF") );
+    ok binary_eq( str_encode('//ee'), hstr("8339 D6BF") );
 
 };
 
@@ -65,7 +46,7 @@ __END__
 subtest 'encode requests' => sub {
     my $encoder = Protocol::HTTP2::HeaderCompression->new;
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':method'    => 'GET' ],
@@ -79,7 +60,7 @@ subtest 'encode requests' => sub {
         ff
 EOF
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':method'       => 'GET' ],
@@ -93,7 +74,7 @@ EOF
         5c86 b9b9 9495 56bf
 EOF
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':method'    => 'GET' ],
@@ -114,7 +95,7 @@ subtest 'encode responses' => sub {
     my $encoder = Protocol::HTTP2::HeaderCompression->new;
     $encoder->{_max_ht_size} = 256;
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':status'       => '302' ],
@@ -130,7 +111,7 @@ subtest 'encode responses' => sub {
     fa9b 6f
 EOF
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':status'       => 200 ],
@@ -142,7 +123,7 @@ EOF
         hstr("8c")
     );
 
-    ok iseq(
+    ok binary_eq(
         $encoder->headers_encode(
             [
                 [ ':status'          => 200 ],

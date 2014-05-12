@@ -2,16 +2,11 @@ use strict;
 use warnings;
 use Test::More;
 use Protocol::HTTP2::Constants qw(const_name :endpoints :states);
+use lib 't/lib';
+use PH2Test;
 
 BEGIN {
     use_ok('Protocol::HTTP2::Connection');
-}
-
-sub hstr {
-    my $str = shift;
-    $str =~ s/\s//g;
-    my @a = ( $str =~ /../g );
-    return pack "C*", map { hex $_ } @a;
 }
 
 subtest 'decode_request' => sub {
