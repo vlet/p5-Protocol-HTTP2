@@ -46,8 +46,6 @@ sub decode {
         return undef;
     }
 
-    return $length unless $hblock_size;
-
     $con->new_peer_stream($promised_sid) or return undef;
     $con->stream_promised_sid( $frame_ref->{stream}, $promised_sid );
 
@@ -64,9 +62,11 @@ sub decode {
 }
 
 sub encode {
-    my ( $con, $flags_ref, $stream, $data ) = @_;
-    require Carp;
-    Carp::croak("Push_promise frame encoder not implemented");
+    my ( $con, $flags_ref, $stream_id, $data_ref ) = @_;
+    my $promised_id = $data_ref->[0];
+    my $hblock_ref  = $data_ref->[1];
+
+    return pack( 'N', $promised_id ) . $$hblock_ref;
 }
 
 1;

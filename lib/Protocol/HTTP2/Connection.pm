@@ -94,16 +94,6 @@ sub new {
         $self->{$_} = $opts{$_} if exists $opts{$_};
     }
 
-    $self->enqueue(
-        $type == CLIENT
-        ? ( $self->preface_encode, $self->frame_encode( SETTINGS, 0, 0, {} ) )
-        : $self->frame_encode( SETTINGS, 0, 0,
-            {
-                &SETTINGS_MAX_CONCURRENT_STREAMS =>
-                  DEFAULT_MAX_CONCURRENT_STREAMS
-            }
-        )
-    ) unless $self->upgrade;
     $self;
 }
 
@@ -120,9 +110,22 @@ sub dequeue {
     shift @{ $self->{queue} };
 }
 
+sub process_state {
+    my ( $self, $frame_ref ) = @_;
+    my ( $length, $type, $flags, $stream_id ) =
+      $self->frame_header_decode( $frame_ref, 0 );
+
+    # Sended frame may change state of stream
+    $self->state_machine( 'send', $type, $flags, $stream_id )
+      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
+}
+
 sub enqueue {
     my ( $self, @frames ) = @_;
-    push @{ $self->{queue} }, @frames;
+    for (@frames) {
+        push @{ $self->{queue} }, $_;
+        $self->process_state( \$_ ) if !$self->upgrade && $self->preface;
+    }
 }
 
 sub enqueue_first {
@@ -134,7 +137,10 @@ sub enqueue_first {
             CONTINUATION );
         $i++;
     }
-    splice @{ $self->{queue} }, $i, 0, @frames;
+    for (@frames) {
+        splice @{ $self->{queue} }, $i++, 0, $_;
+        $self->process_state( \$_ );
+    }
 }
 
 sub finish {
@@ -190,13 +196,15 @@ sub state_machine {
     my $pending = ( $type == HEADERS || $type == PUSH_PROMISE )
       && !( $flags & END_HEADERS );
 
-    #    tracer->debug(sprintf
-    #        "\e[0;31mStream state: %s %s for stream %i\e[m\n",
-    #        const_name("frame_types", $type),
-    #        const_name("states", $prev_state),
-    #        $promised_sid || $stream_id,
-    #        $stream_id,
-    #    );
+    #tracer->debug(
+    #    sprintf "\e[0;31mStream state: frame %s is %s%s on %s stream %i\e[m\n",
+    #    const_name( "frame_types", $type ),
+    #    $act,
+    #    $pending ? "*" : "",
+    #    const_name( "states", $prev_state ),
+    #    $promised_sid || $stream_id,
+    #    $stream_id,
+    #);
 
     # Wait until all CONTINUATION frames arrive
     if ( my $ps = $self->stream_pending_state($stream_id) ) {
@@ -307,6 +315,34 @@ sub send_headers {
             $stream_id, \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
         )
     );
+    while ( length($header_block) > 0 ) {
+        my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? 0 : END_HEADERS;
+        $self->enqueue(
+            $self->frame_encode( CONTINUATION, $flags, $stream_id,
+                \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+            )
+        );
+    }
+}
+
+sub send_pp_headers {
+    my ( $self, $stream_id, $promised_id, $headers ) = @_;
+
+    my $header_block = headers_encode( $self->encode_context, $headers );
+
+    my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? END_HEADERS : 0;
+
+    $self->enqueue(
+        $self->frame_encode( PUSH_PROMISE,
+            $flags,
+            $stream_id,
+            [
+                $promised_id,
+                \substr( $header_block, 0, MAX_PAYLOAD_SIZE - 4, '' )
+            ]
+        )
+    );
+
     while ( length($header_block) > 0 ) {
         my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? 0 : END_HEADERS;
         $self->enqueue(

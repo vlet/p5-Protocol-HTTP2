@@ -46,10 +46,6 @@ sub frame_encode {
 
     my $payload = $encoder{$type}->( $con, \$flags, $stream_id, $data_ref );
 
-    # Sended frame may change state of stream
-    $con->state_machine( 'send', $type, $flags, $stream_id )
-      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
-
     pack( 'nC2N', length($payload), $type, $flags, $stream_id ) . $payload;
 }
 
