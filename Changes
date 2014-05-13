@@ -2,9 +2,14 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - switch to Module::Build::Tiny
     - implemented PING encoder/decoder
     - fixed Rst_stream - unneeded state manipulation
     - internal PH2Test test module
+    - implemented PUSH_PROMISE encoder
+    - implemented push for Server
+    - add Server's push in server-tls-anyevent.pl example
+    - process state of encoded frame after putting it on a queue
 
 0.05 2014-05-11T11:19:57Z
 
@@ -16,6 +21,7 @@ Revision history for Perl extension Protocol-HTTP2
     - HTTP/1.1 Upgrade for client
 
 0.04 2014-05-08T18:22:24Z
+
     - enable Upgrade in server-anyevent.pl example
     - implemented HTTP/1.1 Upgrade (server)
     - fixed build/tests on windows
@@ -23,6 +29,7 @@ Revision history for Perl extension Protocol-HTTP2
     - update state doc
 
 0.03 2014-05-07T18:05:50Z
+
     - client-tls-anyevent.pl with NPN/ALPN support and server's push handling
     - fixed error handling (send only one GOAWAY)
     - fixed PUSH_RPOMISE/CONTINUATION state and headers handling
