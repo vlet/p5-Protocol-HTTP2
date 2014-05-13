@@ -9,32 +9,40 @@ use Carp;
 
 sub new {
     my ( $class, %opts ) = @_;
-    my $con;
+    my $self = {
+        con   => undef,
+        input => '',
+    };
 
     if ( exists $opts{on_request} ) {
-        my $cb = delete $opts{on_request};
+        $self->{cb} = delete $opts{on_request};
         $opts{on_new_peer_stream} = sub {
             my $stream_id = shift;
-            $con->stream_cb(
+            $self->{con}->stream_cb(
                 $stream_id,
                 HALF_CLOSED,
                 sub {
-                    $cb->(
+                    $self->{cb}->(
                         $stream_id,
-                        $con->stream_headers($stream_id),
-                        $con->stream_data($stream_id),
+                        $self->{con}->stream_headers($stream_id),
+                        $self->{con}->stream_data($stream_id),
                     );
                 }
             );
           }
     }
 
-    $con = Protocol::HTTP2::Connection->new( SERVER, %opts );
+    $self->{con} = Protocol::HTTP2::Connection->new( SERVER, %opts );
+    $self->{con}->enqueue(
+        $self->{con}->frame_encode( SETTINGS, 0, 0,
+            {
+                &SETTINGS_MAX_CONCURRENT_STREAMS =>
+                  DEFAULT_MAX_CONCURRENT_STREAMS
+            }
+        )
+    ) unless $self->{con}->upgrade;
 
-    bless {
-        con   => $con,
-        input => '',
-    }, $class;
+    bless $self, $class;
 }
 
 my @must = (qw(:status));
@@ -55,6 +63,36 @@ sub response {
         exists $h{data} ? 0 : 1
     );
     $con->send_data( $h{stream_id}, $h{data} ) if exists $h{data};
+
+    return $self;
+}
+
+my @must_pp = (qw(:authority :method :path :scheme));
+
+sub push {
+    my ( $self, %h ) = @_;
+    my $con = $self->{con};
+    my @miss = grep { !exists $h{$_} } @must_pp;
+    croak "Missing headers in push promise: @miss" if @miss;
+    croak "Can't push on my own stream. "
+      . "Seems like a recursion in request callback."
+      if $h{stream_id} % 2 == 0;
+
+    my $promised_sid = $con->new_stream;
+    $con->stream_promised_sid( $h{stream_id}, $promised_sid );
+
+    my @headers = map { $_ => $h{$_} } @must_pp;
+
+    $con->send_pp_headers( $h{stream_id}, $promised_sid, \@headers, );
+
+    # send promised response after current stream is closed
+    $con->stream_cb(
+        $h{stream_id},
+        CLOSED,
+        sub {
+            $self->{cb}->( $promised_sid, \@headers );
+        }
+    );
 
     return $self;
 }
@@ -94,7 +132,6 @@ sub feed {
         return unless $len;
 
         substr( $self->{input}, $offset, $len ) = '';
-        $con->upgrade(0);
 
         $con->enqueue(
             $con->upgrade_response,
@@ -106,6 +143,7 @@ sub feed {
               )
 
         );
+        $con->upgrade(0);
 
         # The HTTP/1.1 request that is sent prior to upgrade is assigned stream
         # identifier 1 and is assigned default priority values (Section 5.3.5).
