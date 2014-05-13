@@ -39,7 +39,7 @@ sub decode {
 
     # Not enough space for header block
     my $hblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
-    if ( $hblock_size <= 0 ) {
+    if ( $hblock_size < 0 ) {
         $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
