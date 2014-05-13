@@ -72,8 +72,11 @@ sub stream_state {
             $s->{state} = $new_state;
 
             # Exec callbacks for new state
-            $s->{cb}->{ $s->{state} }->()
-              if exists $s->{cb} && exists $s->{cb}->{ $s->{state} };
+            if ( exists $s->{cb} && exists $s->{cb}->{ $s->{state} } ) {
+                for my $cb ( @{ $s->{cb}->{ $s->{state} } } ) {
+                    $cb->();
+                }
+            }
 
             # Cleanup
             if ( $new_state == CLOSED ) {
@@ -108,7 +111,7 @@ sub stream_cb {
 
     return undef unless exists $self->{streams}->{$stream_id};
 
-    $self->{streams}->{$stream_id}->{cb}->{$state} = $cb;
+    push @{ $self->{streams}->{$stream_id}->{cb}->{$state} }, $cb;
 }
 
 sub stream_data {
@@ -217,7 +220,7 @@ sub _stream_fcw {
     if (@_) {
         $s->{ 'fcw_' . $dir } += shift;
         tracer->debug( "Stream $stream_id fcw_$dir now is "
-              . $self->{ 'fcw_' . $dir }
+              . $s->{ 'fcw_' . $dir }
               . "\n" );
     }
     $s->{ 'fcw_' . $dir };
