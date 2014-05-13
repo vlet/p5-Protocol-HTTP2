@@ -71,6 +71,19 @@ tcp_server $host, $port, sub {
         },
         on_request => sub {
             my ( $stream_id, $headers, $data ) = @_;
+            my %h = (@$headers);
+
+            # Push promise (must be before response)
+            if ( $h{':path'} eq '/minil.toml' ) {
+                $server->push(
+                    ':authority' => $host . ':' . $port,
+                    ':method'    => 'GET',
+                    ':path'      => '/css/style.css',
+                    ':scheme'    => 'https',
+                    stream_id    => $stream_id,
+                );
+            }
+
             my $message = "hello, world!";
             $server->response(
                 ':status' => 200,
