@@ -12,6 +12,13 @@ use Protocol::HTTP2::Server;
 subtest 'ping' => sub {
 
     my $client = Protocol::HTTP2::Client->new;
+    $client->request(
+        ':authority' => 'localhost',
+        ':method'    => 'GET',
+        ':path'      => '/',
+        ':scheme'    => 'https',
+    );
+
     my $server = Protocol::HTTP2::Server->new;
 
     while ( my $frame = $client->next_frame ) {
@@ -35,8 +42,7 @@ subtest 'ping' => sub {
 
 subtest 'dont mess with continuation' => sub {
     my $con = Protocol::HTTP2::Connection->new(CLIENT);
-    $con->dequeue;    # PREFACE
-    $con->dequeue;    # SETTINGS
+    $con->preface(1);
 
     $con->new_stream(1);
     my $hdrs = $con->frame_encode( HEADERS,      0,           1, \"\x82" );
