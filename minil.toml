@@ -1,2 +1,3 @@
 name = "Protocol-HTTP2"
+module_maker="ModuleBuildTiny"
 # badges = ["travis"]
