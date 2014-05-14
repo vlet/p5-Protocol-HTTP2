@@ -55,7 +55,10 @@
       },
       "test" : {
          "requires" : {
-            "Test::More" : "0.98"
+            "AnyEvent" : "0",
+            "Net::SSLeay" : "> 1.45",
+            "Test::More" : "0.98",
+            "Test::TCP" : "0"
          }
       }
    },

@@ -26,6 +26,7 @@ never become production or even finished.
     | Headers (de)compression |    +    |
     | Stream states           |    +    |
     | Flow control            |    ±    |
+    | Stream priority         |    ±    |
     | Server push             |    +    |
     | Connect method          |    -    |
 
@@ -35,7 +36,7 @@ never become production or even finished.
     | --------------- |:-------:|:-------:|
     | DATA            |    ±    |    +    |
     | HEADERS         |    +    |    +    |
-    | PRIORITY        |    -    |    -    |
+    | PRIORITY        |    +    |    +    |
     | RST_STREAM      |    +    |    +    |
     | SETTINGS        |    +    |    +    |
     | PUSH_PROMISE    |    +    |    +    |
