@@ -2,6 +2,12 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - implemented PRIOIRITY encoder/decoder
+    - update HEADERS implementation (priority handling)
+    - remove old flags PRIORITY_GROUP, PRIORITY_DEPENDENCY
+    - added tcp test
+    - update cpanfile (TCP::Test and other test deps)
+
 0.06 2014-05-13T17:51:16Z
 
     - switch to Module::Build::Tiny
