@@ -11,6 +11,9 @@ requires 'MIME::Base64', '3.11';
 
 on 'test' => sub {
     requires 'Test::More', '0.98';
+    requires 'AnyEvent';
+    requires 'Net::SSLeay', '> 1.45';
+    requires 'Test::TCP';
 };
 
 on 'develop' => sub {
