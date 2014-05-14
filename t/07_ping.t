@@ -45,7 +45,7 @@ subtest 'dont mess with continuation' => sub {
     $con->preface(1);
 
     $con->new_stream(1);
-    my $hdrs = $con->frame_encode( HEADERS,      0,           1, \"\x82" );
+    my $hdrs = $con->frame_encode( HEADERS, 0, 1, { hblock => \"\x82" } );
     my $cont = $con->frame_encode( CONTINUATION, END_HEADERS, 1, \"\x85" );
     my $data = $con->frame_encode( DATA,         0,           1, \"DATA" );
 
