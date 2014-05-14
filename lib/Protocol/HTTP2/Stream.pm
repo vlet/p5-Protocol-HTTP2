@@ -9,17 +9,24 @@ use Protocol::HTTP2::Trace qw(tracer);
 
 # Streams related part of Protocol::HTTP2::Conntection
 
+sub default_stream {
+    my $self = shift;
+    {
+        'state'      => IDLE,
+        'weight'     => DEFAULT_WEIGHT,
+        'stream_dep' => 0,
+        'fcw_recv'   => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
+        'fcw_send'   => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
+    };
+}
+
 sub new_stream {
     my $self = shift;
     return undef if $self->goaway;
 
     $self->{last_stream} += 2
       if exists $self->{streams}->{ $self->{type} == CLIENT ? 1 : 2 };
-    $self->{streams}->{ $self->{last_stream} } = {
-        'state'    => IDLE,
-        'fcw_recv' => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-        'fcw_send' => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-    };
+    $self->{streams}->{ $self->{last_stream} } = $self->default_stream;
     return $self->{last_stream};
 }
 
@@ -33,11 +40,7 @@ sub new_peer_stream {
         return undef;
     }
     $self->{last_peer_stream} = $stream_id;
-    $self->{streams}->{$stream_id} = {
-        'state'    => IDLE,
-        'fcw_recv' => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-        'fcw_send' => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-    };
+    $self->{streams}->{$stream_id} = $self->default_stream;
     $self->{on_new_peer_stream}->($stream_id)
       if exists $self->{on_new_peer_stream};
 
@@ -264,6 +267,54 @@ sub stream_send_blocked {
       && $self->stream_fcw_send($stream_id) != 0;
 
     $self->send_data( $stream_id, $blocked_data );
+}
+
+sub stream_weight {
+    my ( $self, $stream_id, $weight ) = @_;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+
+    $s->{weight} = $weight if defined $weight;
+    $s->{weight};
+}
+
+sub stream_reprio {
+    my ( $self, $stream_id, $exclusive, $stream_dep ) = @_;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams};
+
+    if ( $s->{$stream_id}->{stream_dep} != $stream_dep ) {
+
+        # check if new stream_dep is stream child
+        if ( $stream_dep != 0 ) {
+            my $sid = $stream_dep;
+            while ( $sid = $s->{$sid}->{stream_dep} ) {
+                next unless $sid == $stream_id;
+
+                # Child take my stream dep
+                $s->{$stream_dep}->{stream_dep} =
+                  $s->{$stream_id}->{stream_dep};
+                last;
+            }
+        }
+
+        # Set new stream dep
+        $s->{$stream_id}->{stream_dep} = $stream_dep;
+    }
+
+    if ($exclusive) {
+
+        # move all siblings to childs
+        for my $sid ( keys %$s ) {
+            next
+              if $s->{$sid}->{stream_dep} != $stream_dep
+              || $sid == $stream_id;
+
+            $s->{$sid}->{stream_dep} = $stream_id;
+        }
+    }
+
+    return 1;
 }
 
 1;
