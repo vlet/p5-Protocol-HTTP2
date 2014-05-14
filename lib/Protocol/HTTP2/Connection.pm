@@ -311,8 +311,8 @@ sub send_headers {
     $flags |= END_HEADERS if length($header_block) <= MAX_PAYLOAD_SIZE;
 
     $self->enqueue(
-        $self->frame_encode( HEADERS, $flags,
-            $stream_id, \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+        $self->frame_encode( HEADERS, $flags, $stream_id,
+            { hblock => \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' ) }
         )
     );
     while ( length($header_block) > 0 ) {

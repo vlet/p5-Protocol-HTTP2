@@ -1,14 +1,13 @@
 package Protocol::HTTP2::Frame::Headers;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors :states);
+use Protocol::HTTP2::Constants qw(:flags :errors :states :limits);
 use Protocol::HTTP2::Trace qw(tracer);
 
 # 6.2 HEADERS
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
-    my ( $pad_high, $pad_low, $pg_id, $weight, $exclusive, $stream_dep ) =
-      ( 0, 0 );
+    my ( $pad_high, $pad_low, $weight, $exclusive, $stream_dep ) = ( 0, 0 );
     my $offset    = 0;
     my $frame_ref = $con->decode_context->{frame};
 
@@ -16,13 +15,6 @@ sub decode {
     if (
         # HEADERS frames MUST be associated with a stream
         ( $frame_ref->{stream} == 0 ) ||
-
-        # PRIORITY_GROUP and PRIORITY_DEPENDENCY can't be set both
-        (
-               ( $frame_ref->{flags} & PRIORITY_GROUP )
-            && ( $frame_ref->{flags} & PRIORITY_DEPENDENCY )
-        )
-        ||
 
         # Error when PAD_HIGH is set, but PAD_LOW isn't
         (
@@ -46,19 +38,17 @@ sub decode {
         $offset += 1;
     }
 
-    if ( $frame_ref->{flags} & PRIORITY_GROUP ) {
-        ( $pg_id, $weight ) =
+    if ( $frame_ref->{flags} & PRIORITY_FLAG ) {
+        ( $stream_dep, $weight ) =
           unpack( 'NC', substr( $$buf_ref, $buf_offset + $offset, 5 ) );
-        $pg_id &= 0x7FFF_FFFF;
-        $offset += 5;
-    }
-
-    if ( $frame_ref->{flags} & PRIORITY_DEPENDENCY ) {
-        $stream_dep =
-          unpack( 'N', substr( $$buf_ref, $buf_offset + $offset, 4 ) );
-        $exclusive = $stream_dep & 0x8000_0000;
+        $exclusive = $stream_dep >> 31;
         $stream_dep &= 0x7FFF_FFFF;
-        $offset += 4;
+        $weight++;
+
+        $con->stream_weight( $frame_ref->{stream}, $weight );
+        $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep, );
+
+        $offset += 5;
     }
 
     # Not enough space for header block
@@ -81,7 +71,28 @@ sub decode {
 
 sub encode {
     my ( $con, $flags_ref, $stream, $data_ref ) = @_;
-    return $$data_ref;
+    my $res = '';
+
+    if ( exists $data_ref->{padding} ) {
+        if ( $data_ref->{padding} > 255 ) {
+            $$flags_ref |= PAD_HIGH | PAD_LOW;
+            $res .= pack 'n', $data_ref->{padding};
+        }
+        else {
+            $$flags_ref |= PAD_LOW;
+            $res .= pack 'C', $data_ref->{padding};
+        }
+    }
+
+    if ( exists $data_ref->{stream_dep} || exists $data_ref->{weight} ) {
+        $$flags_ref |= PRIORITY_FLAG;
+        my $weight = ( $data_ref->{weight} || DEFAULT_WEIGHT ) - 1;
+        my $stream_dep = $data_ref->{stream_dep} || 0;
+        $stream_dep |= ( 1 << 31 ) if $data_ref->{exclusive};
+        $res .= pack 'NC', $stream_dep, $weight;
+    }
+
+    return $res . ${ $data_ref->{hblock} };
 }
 
 1;

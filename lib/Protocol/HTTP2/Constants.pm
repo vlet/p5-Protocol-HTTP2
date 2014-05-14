@@ -49,15 +49,14 @@ use constant {
     BLOCKED       => 0xB,
 
     # Flags
-    ACK                 => 0x1,
-    END_STREAM          => 0x1,
-    END_SEGMENT         => 0x2,
-    END_HEADERS         => 0x4,
-    PAD_LOW             => 0x8,
-    PAD_HIGH            => 0x10,
-    PRIORITY_GROUP      => 0x20,
-    COMPRESSED          => 0x20,
-    PRIORITY_DEPENDENCY => 0x40,
+    ACK           => 0x1,
+    END_STREAM    => 0x1,
+    END_SEGMENT   => 0x2,
+    END_HEADERS   => 0x4,
+    PAD_LOW       => 0x8,
+    PAD_HIGH      => 0x10,
+    PRIORITY_FLAG => 0x20,
+    COMPRESSED    => 0x20,
 
     # Errors
     NO_ERROR            => 0,
@@ -99,7 +98,7 @@ our %EXPORT_TAGS = (
     preface => [qw(PREFACE)],
     flags   => [
         qw(ACK END_STREAM END_SEGMENT END_HEADERS PAD_LOW PAD_HIGH
-          PRIORITY_GROUP COMPRESSED PRIORITY_DEPENDENCY)
+          PRIORITY_FLAG COMPRESSED)
     ],
     settings => [
         qw(SETTINGS_HEADER_TABLE_SIZE SETTINGS_ENABLE_PUSH
