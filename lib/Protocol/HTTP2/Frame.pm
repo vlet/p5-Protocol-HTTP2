@@ -154,7 +154,7 @@ sub frame_decode {
     | GOAWAY          |   |   |   |   |   |   |   |   |   |  0  |
     | WINDOW_UPDATE   |   |   |   |   |   |   |   |   |   | 0/x |
     | CONTINUATION    |   |   |   | x | x | x |   |   |   |  x  |
-    | ALTSVC          |   |   |   | x | x | x |   |   |   |  x  |
+    | ALTSVC          |   |   |   | x | x | x |   |   |   | 0/x |
     | BLOCKED         |   |   |   |   |   |   |   |   |   | 0/x |
 
 =cut
