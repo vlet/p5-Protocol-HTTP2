@@ -3,7 +3,7 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.06";
+our $VERSION = "0.07";
 
 our $draft = "12";
 
