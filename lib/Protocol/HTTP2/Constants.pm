@@ -20,6 +20,9 @@ use constant {
     # Priority
     DEFAULT_WEIGHT => 16,
 
+    # ALTSVC
+    DEFAULT_ALTSVC_MAX_AGE => 86_400,
+
     # Stream states
     IDLE        => 1,
     RESERVED    => 2,
@@ -107,6 +110,7 @@ our %EXPORT_TAGS = (
     ],
     limits => [
         qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE MAX_FCW_SIZE DEFAULT_WEIGHT
+          DEFAULT_ALTSVC_MAX_AGE
           DEFAULT_HEADER_TABLE_SIZE
           DEFAULT_MAX_CONCURRENT_STREAMS
           DEFAULT_ENABLE_PUSH

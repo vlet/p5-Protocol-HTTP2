@@ -444,4 +444,9 @@ sub ack_ping {
     $self->enqueue_first( $self->frame_encode( PING, ACK, 0, $payload_ref ) );
 }
 
+# TODO: Alternative services
+sub altsvc {
+    my ( $self, $port, $proto, $host, $origin ) = @_;
+}
+
 1;
