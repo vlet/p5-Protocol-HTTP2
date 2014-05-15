@@ -7,6 +7,7 @@ our @EXPORT = qw(hstr binary_eq);
 
 sub hstr {
     my $str = shift;
+    $str =~ s/\#.*//g;
     $str =~ s/\s//g;
     my @a = ( $str =~ /../g );
     return pack "C*", map { hex $_ } @a;
