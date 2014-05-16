@@ -67,7 +67,6 @@ sub server {
             on_error => sub {
                 $_[0]->destroy;
                 print "connection error\n";
-                $w->send(0);
             },
             on_eof => sub {
                 $handle->destroy;

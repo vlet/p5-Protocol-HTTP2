@@ -24,7 +24,7 @@ subtest 'client/server' => sub {
       )
     {
         my $test = shift @$opts;
-        diag "test: $test\n";
+        note "test: $test\n";
         eval {
             local $SIG{ALRM} = sub { die "timeout\n" };
             alarm 5;
@@ -93,7 +93,6 @@ subtest 'client/server' => sub {
                         },
                     );
                 },
-                port => 8000
             );
             alarm 0;
         };
