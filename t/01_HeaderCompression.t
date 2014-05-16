@@ -3,6 +3,8 @@ use warnings;
 use Test::More;
 use lib 't/lib';
 use PH2Test;
+use Protocol::HTTP2::Connection;
+use Protocol::HTTP2::Constants qw(:endpoints :limits);
 
 BEGIN {
     use_ok( 'Protocol::HTTP2::HeaderCompression',
@@ -40,19 +42,19 @@ EOF
     is $res, "nghttpd nghttp2/0.4.0-DEV", "str_decode";
 };
 
-done_testing();
-__END__
-
 subtest 'encode requests' => sub {
-    my $encoder = Protocol::HTTP2::HeaderCompression->new;
+
+    my $con = Protocol::HTTP2::Connection->new(CLIENT);
+    my $ctx = $con->encode_context;
 
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':method'    => 'GET' ],
-                [ ':scheme'    => 'http' ],
-                [ ':path'      => '/' ],
-                [ ':authority' => 'www.example.com' ]
+                ':method'    => 'GET',
+                ':scheme'    => 'http',
+                ':path'      => '/',
+                ':authority' => 'www.example.com',
             ]
         ),
         hstr(<<EOF) );
@@ -61,13 +63,14 @@ subtest 'encode requests' => sub {
 EOF
 
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':method'       => 'GET' ],
-                [ ':scheme'       => 'http' ],
-                [ ':path'         => '/' ],
-                [ ':authority'    => 'www.example.com' ],
-                [ 'cache-control' => 'no-cache' ],
+                ':method'       => 'GET',
+                ':scheme'       => 'http',
+                ':path'         => '/',
+                ':authority'    => 'www.example.com',
+                'cache-control' => 'no-cache',
             ]
         ),
         hstr(<<EOF) );
@@ -75,13 +78,14 @@ EOF
 EOF
 
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':method'    => 'GET' ],
-                [ ':scheme'    => 'https' ],
-                [ ':path'      => '/index.html' ],
-                [ ':authority' => 'www.example.com' ],
-                [ 'custom-key' => 'custom-value' ],
+                ':method'    => 'GET',
+                ':scheme'    => 'https',
+                ':path'      => '/index.html',
+                ':authority' => 'www.example.com',
+                'custom-key' => 'custom-value',
             ]
         ),
         hstr(<<EOF) );
@@ -92,16 +96,19 @@ EOF
 };
 
 subtest 'encode responses' => sub {
-    my $encoder = Protocol::HTTP2::HeaderCompression->new;
-    $encoder->{_max_ht_size} = 256;
+
+    my $con = Protocol::HTTP2::Connection->new(SERVER);
+    my $ctx = $con->encode_context;
+    $ctx->{max_ht_size} = 256;
 
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':status'       => '302' ],
-                [ 'cache-control' => 'private' ],
-                [ 'date'          => 'Mon, 21 Oct 2013 20:13:21 GMT' ],
-                [ 'location'      => 'https://www.example.com' ],
+                ':status'       => '302',
+                'cache-control' => 'private',
+                'date'          => 'Mon, 21 Oct 2013 20:13:21 GMT',
+                'location'      => 'https://www.example.com',
             ]
         ),
         hstr(<<EOF) );
@@ -111,42 +118,50 @@ subtest 'encode responses' => sub {
     fa9b 6f
 EOF
 
+    is $ctx->{ht_size} => 222, 'ht_size ok';
+
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':status'       => 200 ],
-                [ 'cache-control' => 'private' ],
-                [ 'date'          => 'Mon, 21 Oct 2013 20:13:21 GMT' ],
-                [ 'location'      => 'https://www.example.com' ],
+                ':status'       => 200,
+                'cache-control' => 'private',
+                'date'          => 'Mon, 21 Oct 2013 20:13:21 GMT',
+                'location'      => 'https://www.example.com',
             ]
         ),
         hstr("8c")
     );
 
+    is $ctx->{ht_size} => 222, 'ht_size ok';
+
     ok binary_eq(
-        $encoder->headers_encode(
+        headers_encode(
+            $ctx,
             [
-                [ ':status'          => 200 ],
-                [ 'cache-control'    => 'private' ],
-                [ 'date'             => 'Mon, 21 Oct 2013 20:13:22 GMT' ],
-                [ 'location'         => 'https://www.example.com' ],
-                [ 'content-encoding' => 'gzip' ],
-                [
-                    'set-cookie' =>
-                      'foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1'
-                ],
+                ':status'          => 200,
+                'cache-control'    => 'private',
+                'date'             => 'Mon, 21 Oct 2013 20:13:22 GMT',
+                'location'         => 'https://www.example.com',
+                'content-encoding' => 'gzip',
+                'set-cookie' =>
+                  'foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1',
             ]
         ),
         hstr(<<EOF) );
-    4393 d6db b298 84de 2a71 8805 0620
-    9851 3111 b56b a35e 84ab dd97 ff
-    7b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe
+    8484 4393 d6db b298 84de 2a71 8805 0620
+    9851 3111 b56b a35e 0467 7a69 7084 8483
+    837b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe
     fd3c 7edf 9eff 1f2f 0f3c fe9f 6fcf 7f8f
     879f 61ad 4f4c c9a9 73a2 200e c372 5e18
     b1b7 4e3f
 EOF
+    is $ctx->{ht_size} => 215, 'ht_size ok';
 
 };
+
+done_testing();
+__END__
 
 subtest 'decode requests' => sub {
     my $decoder = Protocol::HTTP2::HeaderCompression->new;

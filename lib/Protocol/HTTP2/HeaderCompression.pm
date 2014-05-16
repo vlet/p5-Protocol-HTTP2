@@ -101,25 +101,31 @@ sub str_decode {
 
 sub evict_ht {
     my ( $context, $size ) = @_;
+    my @evicted;
 
     my $ht = $context->{header_table};
     my $rs = $context->{reference_set};
 
     while ( $context->{ht_size} + $size > $context->{max_ht_size} ) {
+        my $n      = $#$ht;
         my $kv_ref = pop @$ht;
         my $kv_str = "$kv_ref";    # explicit stringification
         $context->{ht_size} -=
           32 + length( $kv_ref->[0] ) + length( $kv_ref->[1] );
         delete $rs->{$kv_str};
+        tracer->debug( sprintf "Evicted header [%i] %s = %s\n",
+            $n + 1, @$kv_ref );
+        push @evicted, [ $n, @$kv_ref ];
     }
+    return @evicted;
 }
 
 sub add_to_ht {
     my ( $context, $key, $value ) = @_;
     my $size = length($key) + length($value) + 32;
-    return if $size > $context->{max_ht_size};
+    return () if $size > $context->{max_ht_size};
 
-    evict_ht( $context, $size );
+    my @evicted = evict_ht( $context, $size );
 
     my $ht     = $context->{header_table};
     my $rs     = $context->{reference_set};
@@ -132,6 +138,7 @@ sub add_to_ht {
     $rs->{$kv_str} = $kv_ref;
     unshift @$ht, $kv_ref;
     $context->{ht_size} += $size;
+    return @evicted;
 }
 
 sub headers_decode {
@@ -348,6 +355,7 @@ sub headers_encode {
   HLOOP:
     for my $header (@headers) {
         my $value = $hlist{$header};
+        tracer->debug("Encoding header: $header = $value\n");
 
         for my $i ( 0 .. $#$ht ) {
             next
@@ -356,46 +364,72 @@ sub headers_encode {
             my $hdr = int_encode( $i + 1, 7 );
             vec( $hdr, 7, 1 ) = 1;
             $res .= $hdr;
+            tracer->debug(
+                "\talready in header table, index " . ( $i + 1 ) . "\n" );
             next HLOOP;
         }
+
+        my $hdr;
 
         for my $i ( 0 .. $#$ht ) {
             next
               unless $ht->[$i]->[0] eq $header
               && !exists $rstable{ $header . ' ' . $value };
-            my $hdr = int_encode( $i + 1, 6 );
+            $hdr = int_encode( $i + 1, 6 );
             vec( $hdr, 3, 2 ) = 1;
-            $res .= $hdr . str_encode($value);
-            next HLOOP;
+            $hdr .= str_encode($value);
+            tracer->debug( "\talready in header table, index "
+                  . ( $i + 1 )
+                  . ", but different value\n" );
+            last;
+        }
+
+        if ($hdr) {
+
+            # NOP
         }
 
         # 4.2 Indexed header field representation
-        if ( exists $rstable{ $header . ' ' . $value } ) {
-            my $hdr =
-              int_encode( @$ht + $rstable{ $header . ' ' . $value }, 7 );
+        elsif ( exists $rstable{ $header . ' ' . $value } ) {
+            $hdr = int_encode( @$ht + $rstable{ $header . ' ' . $value }, 7 );
             vec( $hdr, 7, 1 ) = 1;
-            $res .= $hdr;
+            tracer->debug( "\tIndexed header "
+                  . ( @$ht + $rstable{ $header . ' ' . $value } )
+                  . " from table\n" );
 
         }
 
         # 4.3.1 Literal Header Field with Incremental Indexing
         # (Indexed Name)
         elsif ( exists $rstable{ $header . ' ' } ) {
-            my $hdr = int_encode( @$ht + $rstable{ $header . ' ' }, 6 );
+            $hdr = int_encode( @$ht + $rstable{ $header . ' ' }, 6 );
             vec( $hdr, 3, 2 ) = 1;
-            $res .= $hdr . str_encode($value);
+            $hdr .= str_encode($value);
+            tracer->debug( "\tLiteral header "
+                  . ( @$ht + $rstable{ $header . ' ' } )
+                  . " indexed name\n" );
         }
 
         # 4.3.1 Literal Header Field with Incremental Indexing
         # (New Name)
         else {
-            my $hdr = pack( 'C', 0x40 );
-            $res .= $hdr . str_encode($header) . str_encode($value);
+            $hdr = pack( 'C', 0x40 );
+            $hdr .= str_encode($header) . str_encode($value);
+            tracer->debug("\tLiteral header new name\n");
         }
 
-        add_to_ht( $context, $header, $value );
+        # Before evicting a header belonging to the reference set, it is
+        # emitted, by coding it twice as an Indexed Representation.
+        for my $ev ( add_to_ht( $context, $header, $value ) ) {
+            next
+              unless exists $hlist{ $ev->[1] }
+              && $hlist{ $ev->[1] } eq $ev->[2];
+            my $ev_hdr = int_encode( $ev->[0] + 1, 7 );
+            vec( $ev_hdr, 7, 1 ) = 1;
+            $res .= $ev_hdr . $ev_hdr;
+        }
+        $res .= $hdr;
     }
-
     return $res;
 }
 
