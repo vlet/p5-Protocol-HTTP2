@@ -83,7 +83,13 @@ sub stream_state {
 
             # Cleanup
             if ( $new_state == CLOSED ) {
-                $s = $self->{streams}->{$stream_id} = { state => CLOSED };
+                for my $key ( keys %$s ) {
+                    next if grep { $key eq $_ } (
+                        qw(state weight stream_dep
+                          fcw_recv fcw_send   )
+                    );
+                    delete $s->{$key};
+                }
             }
         }
     }
@@ -245,8 +251,7 @@ sub stream_fcw_update {
 sub stream_blocked_data {
     my $self      = shift;
     my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
+    my $s         = $self->{streams}->{$stream_id} or return undef;
 
     if (@_) {
         $s->{blocked_data} .= shift;
@@ -255,18 +260,18 @@ sub stream_blocked_data {
         $self->enqueue( $self->frame_encode( BLOCKED, 0, 0, '' ) )
           if $self->fcw_send == 0;
     }
-    $s->{blocked_data};
+    \$s->{blocked_data};
 }
 
 sub stream_send_blocked {
     my ( $self, $stream_id ) = @_;
-    my $blocked_data = $self->stream_blocked_data($stream_id);
-    return undef
-      unless defined $blocked_data
-      && length($blocked_data)
-      && $self->stream_fcw_send($stream_id) != 0;
+    my $s = $self->{streams}->{$stream_id} or return undef;
 
-    $self->send_data( $stream_id, $blocked_data );
+    if ( length( $s->{blocked_data} )
+        && $self->stream_fcw_send($stream_id) != 0 )
+    {
+        $self->send_data( $stream_id, '' );
+    }
 }
 
 sub stream_weight {

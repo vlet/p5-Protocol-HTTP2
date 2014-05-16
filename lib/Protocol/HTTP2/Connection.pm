@@ -356,7 +356,13 @@ sub send_pp_headers {
 
 sub send_data {
     my ( $self, $stream_id, $data ) = @_;
-    while ( ( my $l = length($data) ) > 0 ) {
+    my $blocked_ref = $self->stream_blocked_data($stream_id);
+    if ( defined $$blocked_ref ) {
+        $data         = $$blocked_ref . $data;
+        $$blocked_ref = undef;
+    }
+    while (1) {
+        my $l    = length($data);
         my $size = MAX_PAYLOAD_SIZE;
         for ( $l, $self->fcw_send, $self->stream_fcw_send($stream_id) ) {
             $size = $_ if $size > $_;
@@ -364,7 +370,7 @@ sub send_data {
         my $flags = $l == $size ? END_STREAM : 0;
 
         # Flow control
-        if ( $size == 0 ) {
+        if ( $l != 0 && $size == 0 ) {
             $self->stream_blocked_data( $stream_id, $data );
             last;
         }
@@ -376,6 +382,7 @@ sub send_data {
                 $stream_id, \substr( $data, 0, $size, '' )
             )
         );
+        last if $flags & END_STREAM;
     }
 }
 
