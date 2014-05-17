@@ -430,6 +430,25 @@ sub headers_encode {
         }
         $res .= $hdr;
     }
+
+    for my $i ( 0 .. $#$ht ) {
+        next
+          if exists $hlist{ $ht->[$i]->[0] }
+          && $hlist{ $ht->[$i]->[0] } eq $ht->[$i]->[1];
+
+        my $kv_ref = "$ht->[$i]";    # explicit stringification;
+        if ( exists $rs->{$kv_ref} ) {
+            delete $rs->{$kv_ref};
+            my $hdr = int_encode( $i + 1, 7 );
+            vec( $hdr, 7, 1 ) = 1;
+            $res .= $hdr;
+            tracer->debug( "\t $ht->[$i]->[0] = $ht->[$i]->[1] in "
+                  . "header table index "
+                  . ( $i + 1 )
+                  . " removed from reference set\n" );
+        }
+    }
+
     return $res;
 }
 
