@@ -55,6 +55,7 @@ sub decode_upgrade_request {
     # TODO: remove after http2 -> http/1.1 headers conversion implemented
     push @$headers_ref, ":method", $method;
     push @$headers_ref, ":path",   $uri;
+    push @$headers_ref, ":scheme", 'http';
 
     my $success = 0;
 
