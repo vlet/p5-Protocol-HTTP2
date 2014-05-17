@@ -7,6 +7,166 @@ use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
 
+=encoding utf-8
+
+=head1 NAME
+
+Protocol::HTTP2::Server - HTTP/2 server
+
+=head1 SYNOPSIS
+
+    use Protocol::HTTP2::Server;
+
+    # You must create tcp server yourself
+    use AnyEvent;
+    use AnyEvent::Socket;
+    use AnyEvent::Handle;
+
+    my $w = AnyEvent->condvar;
+
+    # Plain-text HTTP/2 connection
+    tcp_server 'localhost', 8000, sub {
+        my ( $fh, $peer_host, $peer_port ) = @_;
+        my $handle;
+        $handle = AnyEvent::Handle->new(
+            fh       => $fh,
+            autocork => 1,
+            on_error => sub {
+                $_[0]->destroy;
+                print "connection error\n";
+            },
+            on_eof => sub {
+                $handle->destroy;
+            }
+        );
+
+        # Create Protocol::HTTP2::Server object
+        my $server;
+        $server = Protocol::HTTP2::Server->new(
+            on_request => sub {
+                my ( $stream_id, $headers, $data ) = @_;
+                my $message = "hello, world!";
+
+                # Response to client
+                $server->response(
+                    ':status' => 200,
+                    stream_id => $stream_id,
+
+                    # HTTP/1.1 Headers
+                    headers   => [
+                        'server'         => 'perl-Protocol-HTTP2/0.07',
+                        'content-length' => length($message),
+                        'cache-control'  => 'max-age=3600',
+                        'date'           => 'Fri, 18 Apr 2014 07:27:11 GMT',
+                        'last-modified'  => 'Thu, 27 Feb 2014 10:30:37 GMT',
+                    ],
+
+                    # Content
+                    data => $message,
+                );
+            },
+        );
+
+        # First send settings to peer
+        while ( my $frame = $server->next_frame ) {
+            $handle->push_write($frame);
+        }
+
+        # Receive clients frames
+        # Reply to client
+        $handle->on_read(
+            sub {
+                my $handle = shift;
+
+                $server->feed( $handle->{rbuf} );
+
+                $handle->{rbuf} = undef;
+                while ( my $frame = $server->next_frame ) {
+                    $handle->push_write($frame);
+                }
+                $handle->push_shutdown if $server->shutdown;
+            }
+        );
+    };
+
+    $w->recv;
+
+
+
+=head1 DESCRIPTION
+
+Protocol::HTTP2::Server is HTTP/2 server library. It's intended to make
+http2-server implementations on top of your favorite event loop.
+
+See also L<Shuvgey|https://github.com/vlet/Shuvgey> - AnyEvent HTTP/2 Server
+for PSGI based on L<Protocol::HTTP2::Server>.
+
+=head2 METHODS
+
+=head3 new
+
+Initialize new server object
+
+    my $server = Procotol::HTTP2::Client->new( %options );
+
+Availiable options:
+
+=over
+
+=item on_request => sub {...}
+
+Callback invoked when receiving client's requests
+
+    on_request => sub {
+        # Stream ID, headers array reference and body of request
+        my ( $stream_id, $headers, $data ) = @_;
+
+        my $message = "hello, world!";
+        $server->response(
+            ':status' => 200,
+            stream_id => $stream_id,
+            headers   => [
+                'server'         => 'perl-Protocol-HTTP2/0.01',
+                'content-length' => length($message),
+            ],
+            data => $message,
+        );
+        ...
+    },
+
+
+=item upgrade => 0|1
+
+Use HTTP/1.1 Upgrade to upgrade protocol from HTTP/1.1 to HTTP/2. Upgrade
+possible only on plain (non-tls) connection.
+
+See
+L<Starting HTTP/2 for "http" URIs|http://tools.ietf.org/html/draft-ietf-httpbis-http2-12#section-3.2>
+
+=item on_error => sub {...}
+
+Callback invoked on protocol errors
+
+    on_error => sub {
+        my $error = shift;
+        ...
+    },
+
+=item on_change_state => sub {...}
+
+Callback invoked every time when http/2 streams change their state.
+See
+L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-12#section-5.1>
+
+    on_change_state => sub {
+        my ( $stream_id, $previous_state, $current_state ) = @_;
+        ...
+    },
+
+=back
+
+=cut
+
 sub new {
     my ( $class, %opts ) = @_;
     my $self = {
@@ -45,6 +205,31 @@ sub new {
     bless $self, $class;
 }
 
+=head3 response
+
+Prepare response
+
+    my $message = "hello, world!";
+    $server->response(
+
+        # HTTP/2 status
+        ':status' => 200,
+
+        # Stream ID
+        stream_id => $stream_id,
+
+        # HTTP/1.1 headers
+        headers   => [
+            'server'         => 'perl-Protocol-HTTP2/0.01',
+            'content-length' => length($message),
+        ],
+
+        # Body of response
+        data => $message,
+    );
+
+=cut
+
 my @must = (qw(:status));
 
 sub response {
@@ -66,6 +251,37 @@ sub response {
 
     return $self;
 }
+
+=head3 push
+
+Prepare Push Promise. See
+L<Server Push|http://tools.ietf.org/html/draft-ietf-httpbis-http2-12#section-8.2>
+
+    # Example of push inside of on_request callback
+    on_request => sub {
+        my ( $stream_id, $headers, $data ) = @_;
+        my %h = (@$headers);
+
+        # Push promise (must be before response)
+        if ( $h{':path'} eq '/index.html' ) {
+
+            # index.html contain styles.css resource, so server can push
+            # "/style.css" to client before it request it to increase speed
+            # of loading of whole page
+            $server->push(
+                ':authority' => 'locahost:8000',
+                ':method'    => 'GET',
+                ':path'      => '/style.css',
+                ':scheme'    => 'http',
+                stream_id    => $stream_id,
+            );
+        }
+
+        $server->response(...);
+        ...
+    }
+
+=cut
 
 my @must_pp = (qw(:authority :method :path :scheme));
 
@@ -97,9 +313,45 @@ sub push {
     return $self;
 }
 
+=head3 shutdown
+
+Get connection status:
+
+=over
+
+=item 0 - active
+
+=item 1 - closed (you can terminate connection)
+
+=back
+
+=cut
+
 sub shutdown {
     shift->{con}->shutdown;
 }
+
+=head3 next_frame
+
+get next frame to send over connection to client.
+Returns:
+
+=over
+
+=item undef - on error
+
+=item 0 - nothing to send
+
+=item binary string - encoded frame
+
+=back
+
+    # Example
+    while ( my $frame = $server->next_frame ) {
+        syswrite $fh, $frame;
+    }
+
+=cut
 
 sub next_frame {
     my $self  = shift;
@@ -115,6 +367,15 @@ sub next_frame {
     }
     return $frame;
 }
+
+=head3 feed
+
+Feed decoder with chunks of client's request
+
+    sysread $fh, $binary_data, 4096;
+    $server->feed($binary_data);
+
+=cut
 
 sub feed {
     my ( $self, $chunk ) = @_;
