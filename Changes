@@ -2,6 +2,16 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.08 2014-05-17T09:59:07Z
+
+    - fixed test 09_client_server_tcp.t
+    - fixed *_COMPRESS_DATA constants
+    - fixed blocked data handling
+    - allow zero-sized DATA frames
+    - fixed HPACK encoding: evicting and refrence set emptying
+    - added Protocol::HTTP2::Server POD
+    - fixed upgrade (added required header :scheme)
+
 0.07 2014-05-15T13:14:32Z
 
     - implemented PRIOIRITY encoder/decoder
