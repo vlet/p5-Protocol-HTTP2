@@ -248,6 +248,16 @@ sub stream_fcw_update {
     );
 }
 
+sub stream_issue_blocked {
+    my $self      = shift;
+    my $stream_id = shift;
+    my $s         = $self->{streams}->{$stream_id} or return;
+
+    $s->{issue_blocked} = shift if @_;
+
+    $s->{issue_blocked};
+}
+
 sub stream_blocked_data {
     my $self      = shift;
     my $stream_id = shift;
@@ -255,10 +265,18 @@ sub stream_blocked_data {
 
     if (@_) {
         $s->{blocked_data} .= shift;
-        $self->enqueue( $self->frame_encode( BLOCKED, 0, $stream_id, '' ) )
-          if $self->stream_fcw_send($stream_id) == 0;
-        $self->enqueue( $self->frame_encode( BLOCKED, 0, 0, '' ) )
-          if $self->fcw_send == 0;
+        if ( $self->stream_fcw_send($stream_id) == 0
+            && !$self->stream_issue_blocked($stream_id) )
+        {
+            $self->enqueue( $self->frame_encode( BLOCKED, 0, $stream_id, '' ) );
+            $self->stream_issue_blocked(1);
+        }
+        if ( $self->fcw_send == 0
+            && !$self->issue_blocked )
+        {
+            $self->enqueue( $self->frame_encode( BLOCKED, 0, 0, '' ) );
+            $self->issue_blocked(1);
+        }
     }
     \$s->{blocked_data};
 }

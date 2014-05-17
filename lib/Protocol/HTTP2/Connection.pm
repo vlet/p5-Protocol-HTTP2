@@ -393,6 +393,12 @@ sub send_blocked {
     }
 }
 
+sub issue_blocked {
+    my $self = shift;
+    $self->{issue_blocked} = shift if @_;
+    $self->{issue_blocked};
+}
+
 sub error {
     my $self = shift;
     if ( @_ && !$self->{shutdown} ) {
