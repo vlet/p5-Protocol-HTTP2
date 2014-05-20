@@ -13,8 +13,16 @@ use Protocol::HTTP2::Server;
 use Protocol::HTTP2::Constants qw(const_name);
 
 use Exporter qw(import);
-our @EXPORT = qw(client server);
+our @EXPORT = qw(client server check_tls);
 use Carp;
+
+sub check_tls {
+    my (%opts) = @_;
+    return
+        exists $opts{npn}  ? exists &Net::SSLeay::P_next_proto_negotiated
+      : exists $opts{alpn} ? exists &Net::SSLeay::P_alpn_selected
+      :                      1;
+}
 
 sub server {
     my (%h) = @_;
@@ -22,7 +30,6 @@ sub server {
     my $cb   = delete $h{test_cb} or croak "no servers test_cb";
     my $port = delete $h{port}    or croak "no port availiable";
     my $host = delete $h{host};
-    my $is_tls  = !$h{upgrade} && delete $h{tls} ? 1 : 0;
     my $tls_crt = delete $h{"tls_crt"};
     my $tls_key = delete $h{"tls_key"};
 
@@ -33,25 +40,29 @@ sub server {
         my $handle;
         my $tls;
 
-        if ($is_tls) {
-            Net::SSLeay::initialize();
-
+        if ( !$h{upgrade} && ( $h{npn} || $h{alpn} ) ) {
             eval {
-                my $ctx = Net::SSLeay::CTX_tlsv1_new() or die $!;
-                Net::SSLeay::CTX_set_options( $ctx, &Net::SSLeay::OP_ALL );
-                Net::SSLeay::set_cert_and_key( $ctx, $tls_crt, $tls_key );
+                $tls = AnyEvent::TLS->new(
+                    method    => 'tlsv1',
+                    cert_file => $tls_crt,
+                    key_file  => $tls_key,
+                );
 
-                # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
-                Net::SSLeay::CTX_set_next_protos_advertised_cb( $ctx,
-                    [Protocol::HTTP2::ident_tls] );
+                if ( $h{npn} ) {
 
-                $tls = AnyEvent::TLS->new_from_ssleay($ctx);
+                    # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
+                    Net::SSLeay::CTX_set_next_protos_advertised_cb( $tls->ctx,
+                        [Protocol::HTTP2::ident_tls] );
+                }
+                if ( $h{alpn} ) {
+
+                    # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
+                    Net::SSLeay::CTX_set_alpn_select_cb( $tls->ctx,
+                        [Protocol::HTTP2::ident_tls] );
+                }
             };
-
             if ($@) {
-                print "Some problem with SSL CTX: $@\n";
-                $w->send(0);
-                return;
+                croak "Some problem with SSL CTX: $@\n";
             }
         }
 
@@ -109,18 +120,22 @@ sub client {
     if ( delete $h{upgrade} ) {
         $h{upgrade} = 1;
     }
-    elsif ( delete $h{tls} ) {
-        Net::SSLeay::initialize();
-
+    elsif ( $h{npn} || $h{alpn} ) {
         eval {
-            my $ctx = Net::SSLeay::CTX_tlsv1_new() or die $!;
-            Net::SSLeay::CTX_set_options( $ctx, &Net::SSLeay::OP_ALL );
+            $tls = AnyEvent::TLS->new( method => 'tlsv1', );
 
-            # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
-            Net::SSLeay::CTX_set_next_proto_select_cb( $ctx,
-                [Protocol::HTTP2::ident_tls] );
+            if ( delete $h{npn} ) {
 
-            $tls = AnyEvent::TLS->new_from_ssleay($ctx);
+                # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
+                Net::SSLeay::CTX_set_next_proto_select_cb( $tls->ctx,
+                    [Protocol::HTTP2::ident_tls] );
+            }
+            if ( delete $h{alpn} ) {
+
+                # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
+                Net::SSLeay::CTX_set_alpn_protos( $tls->ctx,
+                    [Protocol::HTTP2::ident_tls] );
+            }
         };
         if ($@) {
             croak "Some problem with SSL CTX: $@\n";

@@ -14,9 +14,18 @@ subtest 'client/server' => sub {
         [ "without tls, upgrade", [ upgrade => 1 ], [ upgrade => 1 ] ],
         [
             "tls/npn",
-            [ tls => 1 ],
+            [ npn => 1 ],
             [
-                tls     => 1,
+                npn     => 1,
+                tls_crt => 'examples/test.crt',
+                tls_key => 'examples/test.key'
+            ]
+        ],
+        [
+            "tls/alpn",
+            [ alpn => 1 ],
+            [
+                alpn    => 1,
                 tls_crt => 'examples/test.crt',
                 tls_key => 'examples/test.key'
             ]
@@ -25,6 +34,13 @@ subtest 'client/server' => sub {
     {
         my $test = shift @$opts;
         note "test: $test\n";
+
+        # Check for NPN/ALPN
+        if ( !check_tls( @{ $opts->[0] } ) ) {
+            note "skiped $test: feature not avaliable\n";
+            next;
+        }
+
         eval {
             local $SIG{ALRM} = sub { die "timeout\n" };
             alarm 5;
