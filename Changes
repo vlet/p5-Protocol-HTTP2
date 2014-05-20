@@ -2,6 +2,8 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+    - another fix for 09_client_server_tcp.t (check features of Net::SSLeay)
+
 0.08 2014-05-17T09:59:07Z
 
     - fixed test 09_client_server_tcp.t
