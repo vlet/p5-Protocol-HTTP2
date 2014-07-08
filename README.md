@@ -1,23 +1,23 @@
 # NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 12) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 13) implementation
 
 # SYNOPSIS
 
     use Protocol::HTTP2;
 
     # get current draft version
-    print $Protocol::HTTP2::draft;      # 12
+    print $Protocol::HTTP2::draft;      # 13
 
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;   # h2-12
+    print Protocol::HTTP2::ident_tls;   # h2-13
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain; # h2c-12
+    print Protocol::HTTP2::ident_plain; # h2c-13
 
 # DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 12) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol (draft 13) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -35,17 +35,15 @@ never become production or even finished.
     | Preface                 |        +        |
     | Headers (de)compression |        +        |
     | Stream states           |        +        |
-    | Flow control            |        Â±        |
-    | Stream priority         |        Â±        |
+    | Flow control            |        ±        |
+    | Stream priority         |        ±        |
     | Server push             |        +        |
-    | Alternative services    |        -        |
     | Connect method          |        -        |
-
 
 
     | Frame           | encoder | decoder |
     | --------------- |:-------:|:-------:|
-    | DATA            |    Â±    |    +    |
+    | DATA            |    ±    |    +    |
     | HEADERS         |    +    |    +    |
     | PRIORITY        |    +    |    +    |
     | RST_STREAM      |    +    |    +    |
@@ -54,15 +52,11 @@ never become production or even finished.
     | PING            |    +    |    +    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
-    | CONTINUATION    |    Â±    |    +    |
-    | ALTSVC          |    +    |    +    |
-    | BLOCKED         |    +    |    Â±    |
+    | CONTINUATION    |    ±    |    +    |
 
-
-
-- \- -- not implemeted
-- Â± -- incomplete
-- \+ -- implemented (may even work)
+- - -- not implemeted
+- ± -- incomplete
+- + -- implemented (may even work)
 
 # MODULES
 
@@ -83,8 +77,8 @@ object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol:
 
 ## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol::HTTP2::HeaderCompression)
 
-Module implements HPACK (draft 07) - Header Compression for HTTP/2.
-[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07)
+Module implements HPACK (draft 08) - Header Compression for HTTP/2.
+[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08)
 
 ## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
 

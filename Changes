@@ -2,7 +2,19 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.09 2014-07-08T13:16:24Z
+
     - another fix for 09_client_server_tcp.t (check features of Net::SSLeay)
+    - updated extract_* scripts
+    - updated HTTP/2 to draft 13
+      - removed ALTSVC and BLOCKED frames
+      - removed DATA frames comression support
+      - PAD_HIGH, PAD_LOW flags are replaced by PADDED
+      - settings changed from 8-bit to 16-bit unsigned integer
+    - updated HPACK to draft 08
+      - updated huffman codes table
+      - updated static table
+    - fixed tests
 
 0.08 2014-05-17T09:59:07Z
 
