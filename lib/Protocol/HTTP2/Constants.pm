@@ -15,7 +15,6 @@ use constant {
     DEFAULT_ENABLE_PUSH            => 1,
     DEFAULT_MAX_CONCURRENT_STREAMS => 100,
     DEFAULT_INITIAL_WINDOW_SIZE    => 65_535,
-    DEFAULT_COMPRESS_DATA          => 0,
 
     # Priority
     DEFAULT_WEIGHT => 16,
@@ -56,10 +55,8 @@ use constant {
     END_STREAM    => 0x1,
     END_SEGMENT   => 0x2,
     END_HEADERS   => 0x4,
-    PAD_LOW       => 0x8,
-    PAD_HIGH      => 0x10,
+    PADDED        => 0x8,
     PRIORITY_FLAG => 0x20,
-    COMPRESSED    => 0x20,
 
     # Errors
     NO_ERROR            => 0,
@@ -81,7 +78,6 @@ use constant {
     SETTINGS_ENABLE_PUSH            => 2,
     SETTINGS_MAX_CONCURRENT_STREAMS => 3,
     SETTINGS_INITIAL_WINDOW_SIZE    => 4,
-    SETTINGS_COMPRESS_DATA          => 5,
 
 };
 
@@ -99,14 +95,11 @@ our %EXPORT_TAGS = (
           )
     ],
     preface => [qw(PREFACE)],
-    flags   => [
-        qw(ACK END_STREAM END_SEGMENT END_HEADERS PAD_LOW PAD_HIGH
-          PRIORITY_FLAG COMPRESSED)
-    ],
+    flags =>
+      [ qw(ACK END_STREAM END_SEGMENT END_HEADERS PADDED PRIORITY_FLAG) ],
     settings => [
         qw(SETTINGS_HEADER_TABLE_SIZE SETTINGS_ENABLE_PUSH
-          SETTINGS_MAX_CONCURRENT_STREAMS SETTINGS_INITIAL_WINDOW_SIZE
-          SETTINGS_COMPRESS_DATA)
+          SETTINGS_MAX_CONCURRENT_STREAMS SETTINGS_INITIAL_WINDOW_SIZE)
     ],
     limits => [
         qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE MAX_FCW_SIZE DEFAULT_WEIGHT
@@ -114,8 +107,7 @@ our %EXPORT_TAGS = (
           DEFAULT_HEADER_TABLE_SIZE
           DEFAULT_MAX_CONCURRENT_STREAMS
           DEFAULT_ENABLE_PUSH
-          DEFAULT_INITIAL_WINDOW_SIZE
-          DEFAULT_COMPRESS_DATA)
+          DEFAULT_INITIAL_WINDOW_SIZE)
     ],
     states    => [qw(IDLE RESERVED OPEN HALF_CLOSED CLOSED)],
     endpoints => [qw(CLIENT SERVER)],

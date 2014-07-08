@@ -14,8 +14,6 @@ use Protocol::HTTP2::Frame::Ping;
 use Protocol::HTTP2::Frame::Goaway;
 use Protocol::HTTP2::Frame::Window_update;
 use Protocol::HTTP2::Frame::Continuation;
-use Protocol::HTTP2::Frame::Altsvc;
-use Protocol::HTTP2::Frame::Blocked;
 
 # Table of payload decoders
 my %frame_class = (
@@ -29,8 +27,6 @@ my %frame_class = (
     &GOAWAY        => 'Goaway',
     &WINDOW_UPDATE => 'Window_update',
     &CONTINUATION  => 'Continuation',
-    &ALTSVC        => 'Altsvc',
-    &BLOCKED       => 'Blocked',
 );
 
 my %decoder =
@@ -78,14 +74,15 @@ sub frame_decode {
     my ( $length, $type, $flags, $stream_id ) =
       $con->frame_header_decode( $buf_ref, $buf_offset );
 
+    return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
+
     # Unknown type of frame
     if ( !exists $frame_class{$type} ) {
         tracer->debug("Unknown type of frame: $type\n");
-        $con->error(PROTOCOL_ERROR);
-        return undef;
-    }
 
-    return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
+        # ignore it
+        return 8 + $length;
+    }
 
     tracer->debug(
         sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = %i, "
@@ -136,26 +133,26 @@ sub frame_decode {
     Last column -- Stream ID of frame types (x -- sid >= 1, 0 -- sid = 0)
 
 
-                        +-END_STREAM 0x1    +-PAD_HIGH 0x10
-                        |   +-ACK 0x1       |   +-PRIORITY 0x20
-                        |   |   +-END_SEGMENT 0x2   +-COMPRESSED 0x20
+                        +-END_STREAM 0x1
+                        |   +-ACK 0x1
+                        |   |   +-END_SEGMENT 0x2
                         |   |   |   +-END_HEADERS 0x4
-                        |   |   |   |   +-PAD_LOW 0x8        +-stream id (value)
-                        |   |   |   |   |   |   |   |        |
-    | frame type\flag | V | V | V | V | V | V | V | V |   |  V  |
-    | --------------- |:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:| - |:---:|
-    | DATA            | x |   | x |   | x | x |   | x |   |  x  |
-    | HEADERS         | x |   | x | x | x | x | x |   |   |  x  |
-    | PRIORITY        |   |   |   |   |   |   |   |   |   |  x  |
-    | RST_STREAM      |   |   |   |   |   |   |   |   |   |  x  |
-    | SETTINGS        |   | x |   |   |   |   |   |   |   |  0  |
-    | PUSH_PROMISE    |   |   |   | x | x | x |   |   |   |  x  |
-    | PING            |   | x |   |   |   |   |   |   |   |  0  |
-    | GOAWAY          |   |   |   |   |   |   |   |   |   |  0  |
-    | WINDOW_UPDATE   |   |   |   |   |   |   |   |   |   | 0/x |
-    | CONTINUATION    |   |   |   | x | x | x |   |   |   |  x  |
-    | ALTSVC          |   |   |   | x | x | x |   |   |   | 0/x |
-    | BLOCKED         |   |   |   |   |   |   |   |   |   | 0/x |
+                        |   |   |   |   +-PADDED 0x8
+                        |   |   |   |   |   +-PRIORITY 0x20
+                        |   |   |   |   |   |        +-stream id (value)
+                        |   |   |   |   |   |        |
+    | frame type\flag | V | V | V | V | V | V |   |  V  |
+    | --------------- |:-:|:-:|:-:|:-:|:-:|:-:| - |:---:|
+    | DATA            | x |   | x |   | x |   |   |  x  |
+    | HEADERS         | x |   | x | x | x | x |   |  x  |
+    | PRIORITY        |   |   |   |   |   |   |   |  x  |
+    | RST_STREAM      |   |   |   |   |   |   |   |  x  |
+    | SETTINGS        |   | x |   |   |   |   |   |  0  |
+    | PUSH_PROMISE    |   |   |   | x | x |   |   |  x  |
+    | PING            |   | x |   |   |   |   |   |  0  |
+    | GOAWAY          |   |   |   |   |   |   |   |  0  |
+    | WINDOW_UPDATE   |   |   |   |   |   |   |   | 0/x |
+    | CONTINUATION    |   |   |   | x | x |   |   |  x  |
 
 =cut
 

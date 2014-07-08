@@ -26,7 +26,7 @@ sub decode {
     $weight++;
 
     $con->stream_weight( $frame_ref->{stream}, $weight );
-    $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep, );
+    $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep );
 
     return $length;
 }

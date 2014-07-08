@@ -25,7 +25,6 @@ sub new {
             &SETTINGS_ENABLE_PUSH            => DEFAULT_ENABLE_PUSH,
             &SETTINGS_MAX_CONCURRENT_STREAMS => DEFAULT_MAX_CONCURRENT_STREAMS,
             &SETTINGS_INITIAL_WINDOW_SIZE    => DEFAULT_INITIAL_WINDOW_SIZE,
-            &SETTINGS_COMPRESS_DATA          => DEFAULT_COMPRESS_DATA,
         },
 
         streams => {},
@@ -290,7 +289,7 @@ sub state_machine {
 
     # CLOSED
     elsif ( $prev_state == CLOSED ) {
-        if ( $type != WINDOW_UPDATE && $cln2srv ) {
+        if ( $type != PRIORITY && ( $type != WINDOW_UPDATE && $cln2srv ) ) {
 
             tracer->error("stream is closed\n");
             $self->error(STREAM_CLOSED);
@@ -391,12 +390,6 @@ sub send_blocked {
     for my $stream_id ( keys %{ $self->{streams} } ) {
         $self->stream_send_blocked($stream_id);
     }
-}
-
-sub issue_blocked {
-    my $self = shift;
-    $self->{issue_blocked} = shift if @_;
-    $self->{issue_blocked};
 }
 
 sub error {

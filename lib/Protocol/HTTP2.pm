@@ -3,9 +3,9 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.08";
+our $VERSION = "0.09";
 
-our $draft = "12";
+our $draft = "13";
 
 sub ident_plain {
     'h2c-' . $draft;
@@ -22,24 +22,24 @@ __END__
 
 =head1 NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 12) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 13) implementation
 
 =head1 SYNOPSIS
 
     use Protocol::HTTP2;
 
     # get current draft version
-    print $Protocol::HTTP2::draft;      # 12
+    print $Protocol::HTTP2::draft;      # 13
 
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;   # h2-12
+    print Protocol::HTTP2::ident_tls;   # h2-13
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain; # h2c-12
+    print Protocol::HTTP2::ident_plain; # h2c-13
 
 =head1 DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 12) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol (draft 13) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -60,7 +60,6 @@ never become production or even finished.
     | Flow control            |        ±        |
     | Stream priority         |        ±        |
     | Server push             |        +        |
-    | Alternative services    |        -        |
     | Connect method          |        -        |
 
 
@@ -76,8 +75,6 @@ never become production or even finished.
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
     | CONTINUATION    |    ±    |    +    |
-    | ALTSVC          |    +    |    +    |
-    | BLOCKED         |    +    |    ±    |
 
 
 =over
@@ -109,8 +106,8 @@ L<Protocol::HTTP2::Stream> (stream operations) and L<Protocol::HTTP2::Upgrade>
 
 =head2 L<Protocol::HTTP2::HeaderCompression>
 
-Module implements HPACK (draft 07) - Header Compression for HTTP/2.
-L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-07>
+Module implements HPACK (draft 08) - Header Compression for HTTP/2.
+L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08>
 
 =head2 L<Protocol::HTTP2::Constants>
 

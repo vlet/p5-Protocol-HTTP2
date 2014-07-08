@@ -16,7 +16,6 @@ sub decode {
             $con->error(FLOW_CONTROL_ERROR);
         }
         else {
-            $con->issue_blocked(0);
             $con->send_blocked();
         }
     }
@@ -26,7 +25,6 @@ sub decode {
             $con->stream_error( $frame_ref->{stream}, FLOW_CONTROL_ERROR );
         }
         elsif ( defined $fcw ) {
-            $con->stream_issue_blocked( $frame_ref->{stream}, 0 );
             $con->stream_send_blocked( $frame_ref->{stream} );
         }
     }

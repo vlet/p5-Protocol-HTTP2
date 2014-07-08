@@ -27,20 +27,24 @@ sub decode {
 
     return 0 if $length == 0;
 
-    if ( $length % 5 != 0 ) {
+    if ( $length % 6 != 0 ) {
         tracer->error("Settings frame payload is broken (lenght $length)\n");
         $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
-    my @settings = unpack( '(CN)*', substr( $$buf_ref, $buf_offset, $length ) );
+    my @settings = unpack( '(SN)*', substr( $$buf_ref, $buf_offset, $length ) );
     while ( my ( $key, $value ) = splice @settings, 0, 2 ) {
-        tracer->debug(
-            "\tSettings " . const_name( "settings", $key ) . " = $value\n" );
         if ( !defined $con->setting($key) ) {
-            tracer->error("\tUnknown setting $key\n");
-            $con->error(PROTOCOL_ERROR);
-            return undef;
+            tracer->debug("\tUnknown setting $key\n");
+
+            # ignore unknown setting
+            next;
+        }
+        else {
+            tracer->debug( "\tSettings "
+                  . const_name( "settings", $key )
+                  . " = $value\n" );
         }
         $con->setting( $key, $value );
     }
@@ -56,7 +60,7 @@ sub encode {
         tracer->debug( "\tSettings "
               . const_name( "settings", $key )
               . " = $data->{$key}\n" );
-        $payload .= pack( 'CN', $key, $data->{$key} );
+        $payload .= pack( 'SN', $key, $data->{$key} );
     }
     return $payload;
 }

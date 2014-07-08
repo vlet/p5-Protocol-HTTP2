@@ -1,37 +1,29 @@
 package Protocol::HTTP2::Frame::Push_promise;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(:flags :errors :settings);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
-    my ( $pad_high, $pad_low, $offset ) = ( 0, 0, 0 );
+    my ( $pad, $offset ) = ( 0, 0 );
     my $frame_ref = $con->decode_context->{frame};
 
     # Protocol errors
     if (
         # PP frames MUST be associated with a stream
-        ( $frame_ref->{stream} == 0 ) ||
+        $frame_ref->{stream} == 0
 
-        # Error when PAD_HIGH is set, but PAD_LOW isn't
-        (
-               ( $frame_ref->{flags} & PAD_HIGH )
-            && ( $frame_ref->{flags} & PAD_LOW ) == 0
-        )
+        # PP frames MUST be allowed
+        || !$con->setting(SETTINGS_ENABLE_PUSH)
       )
     {
         $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
-    if ( $frame_ref->{flags} & PAD_HIGH ) {
-        $pad_high = unpack( 'C', substr( $$buf_ref, $buf_offset ) );
-        $offset += 1;
-    }
-
-    if ( $frame_ref->{flags} & PAD_LOW ) {
-        $pad_low = unpack( 'C', substr( $$buf_ref, $buf_offset + $offset ) );
+    if ( $frame_ref->{flags} & PADDED ) {
+        $pad = unpack( 'C', substr( $$buf_ref, $buf_offset ) );
         $offset += 1;
     }
 
@@ -39,7 +31,7 @@ sub decode {
     $promised_sid &= 0x7FFF_FFFF;
     $offset += 4;
 
-    my $hblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
+    my $hblock_size = $length - $offset - $pad;
     if ( $hblock_size < 0 ) {
         tracer->error("Not enough space for header block\n");
         $con->error(FRAME_SIZE_ERROR);

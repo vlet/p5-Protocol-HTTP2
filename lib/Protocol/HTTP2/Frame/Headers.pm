@@ -7,34 +7,21 @@ use Protocol::HTTP2::Trace qw(tracer);
 # 6.2 HEADERS
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
-    my ( $pad_high, $pad_low, $weight, $exclusive, $stream_dep ) = ( 0, 0 );
-    my $offset    = 0;
+    my ( $pad, $offset, $weight, $exclusive, $stream_dep ) = ( 0, 0 );
     my $frame_ref = $con->decode_context->{frame};
 
     # Protocol errors
     if (
         # HEADERS frames MUST be associated with a stream
-        ( $frame_ref->{stream} == 0 ) ||
-
-        # Error when PAD_HIGH is set, but PAD_LOW isn't
-        (
-               ( $frame_ref->{flags} & PAD_HIGH )
-            && ( $frame_ref->{flags} & PAD_LOW ) == 0
-        )
-
+        $frame_ref->{stream} == 0
       )
     {
         $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
-    if ( $frame_ref->{flags} & PAD_HIGH ) {
-        $pad_high = unpack( 'C', substr( $$buf_ref, $buf_offset, 1 ) );
-        $offset += 1;
-    }
-
-    if ( $frame_ref->{flags} & PAD_LOW ) {
-        $pad_low = unpack( 'C', substr( $$buf_ref, $buf_offset + $offset, 1 ) );
+    if ( $frame_ref->{flags} & PADDED ) {
+        $pad = unpack( 'C', substr( $$buf_ref, $buf_offset, 1 ) );
         $offset += 1;
     }
 
@@ -52,7 +39,7 @@ sub decode {
     }
 
     # Not enough space for header block
-    my $hblock_size = $length - $offset - ( $pad_high << 8 ) - $pad_low;
+    my $hblock_size = $length - $offset - $pad;
     if ( $hblock_size < 0 ) {
         $con->error(FRAME_SIZE_ERROR);
         return undef;
@@ -74,14 +61,8 @@ sub encode {
     my $res = '';
 
     if ( exists $data_ref->{padding} ) {
-        if ( $data_ref->{padding} > 255 ) {
-            $$flags_ref |= PAD_HIGH | PAD_LOW;
-            $res .= pack 'n', $data_ref->{padding};
-        }
-        else {
-            $$flags_ref |= PAD_LOW;
-            $res .= pack 'C', $data_ref->{padding};
-        }
+        $$flags_ref |= PADDED;
+        $res .= pack 'C', $data_ref->{padding};
     }
 
     if ( exists $data_ref->{stream_dep} || exists $data_ref->{weight} ) {
