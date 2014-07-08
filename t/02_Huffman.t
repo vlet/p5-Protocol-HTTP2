@@ -10,7 +10,7 @@ use PH2Test;
 my $example = "www.example.com";
 my $s       = huffman_encode($example);
 
-ok binary_eq( $s, hstr("e7cf9bebe89b6fb16fa9b6ff") ), "encode";
+ok binary_eq( $s, hstr("f1e3 c2e5 f23a 6ba0 ab90 f4ff") ), "encode";
 is huffman_decode($s), $example, "decode";
 
 done_testing();

@@ -7,6 +7,8 @@ BEGIN {
     use_ok('Protocol::HTTP2::Connection');
 }
 
+done_testing;
+__END__
 subtest 'decode_continuation_request' => sub {
 
     open my $fh, '<:raw', 't/continuation.request.data' or die $!;

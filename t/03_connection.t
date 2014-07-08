@@ -9,6 +9,9 @@ BEGIN {
     use_ok('Protocol::HTTP2::Connection');
 }
 
+done_testing();
+__END__
+
 subtest 'decode_request' => sub {
 
     my $data = hstr(<<EOF);
