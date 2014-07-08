@@ -16,7 +16,7 @@ open my $fh, '<', $file or die $!;
 my $doc = XML::LibXML->load_xml( IO => $fh );
 my $hufftable =
   XML::LibXML::XPathExpression->new(
-    '//section[@title="Huffman Codes"]//artwork');
+    '//section[@title="Huffman Code"]//artwork');
 my $value = $doc->findvalue($hufftable);
 die "cant find Huffman Codes section" unless $value;
 
@@ -26,8 +26,8 @@ use strict;
 use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
-our (%hcodes, %rhcodes, $hre);
-our @EXPORT = qw(%hcodes %rhcodes);
+our ( %hcodes, %rhcodes, $hre );
+our @EXPORT = qw(%hcodes %rhcodes $hre);
 
 %hcodes = (
 EOF

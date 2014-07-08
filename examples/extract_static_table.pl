@@ -25,7 +25,7 @@ use strict;
 use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
-our (%stable, %rstable);
+our ( %stable, %rstable );
 our @EXPORT = qw(%stable %rstable);
 
 %stable = (
@@ -40,9 +40,12 @@ while (@nodes) {
 print <<'EOF';
 );
 
-for my $k (keys %stable) {
+for my $k ( sort { $a <=> $b } keys %stable ) {
     my $key = join ' ', @{ $stable{$k} };
     $rstable{$key} = $k;
+    $rstable{ $stable{$k}->[0] . ' ' } = $k
+      if ( $stable{$k}->[1] ne ''
+        && !exists $rstable{ $stable{$k}->[0] . ' ' } );
 }
 
 1;
