@@ -22,24 +22,24 @@ __END__
 
 =head1 NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 13) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 14) implementation
 
 =head1 SYNOPSIS
 
     use Protocol::HTTP2;
 
     # get current draft version
-    print $Protocol::HTTP2::draft;      # 13
+    print $Protocol::HTTP2::draft;      # 14
 
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;   # h2-13
+    print Protocol::HTTP2::ident_tls;   # h2-14
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain; # h2c-13
+    print Protocol::HTTP2::ident_plain; # h2c-14
 
 =head1 DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 13) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol (draft 14) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -106,8 +106,8 @@ L<Protocol::HTTP2::Stream> (stream operations) and L<Protocol::HTTP2::Upgrade>
 
 =head2 L<Protocol::HTTP2::HeaderCompression>
 
-Module implements HPACK (draft 08) - Header Compression for HTTP/2.
-L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08>
+Module implements HPACK (draft 09) - Header Compression for HTTP/2.
+L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-09>
 
 =head2 L<Protocol::HTTP2::Constants>
 
@@ -120,6 +120,7 @@ Module for debugging. (Ab)used Log::Dispatch internally, may be removed soon.
 =head1 SEE ALSO
 
 L<http://http2.github.io/> - official HTTP/2 specification site
+
 L<http://daniel.haxx.se/http2/> - http2 explained
 
 =head1 LICENSE
