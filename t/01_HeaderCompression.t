@@ -58,7 +58,7 @@ subtest 'encode requests' => sub {
             ]
         ),
         hstr(<<EOF) );
-        8287 8644 8cf1 e3c2 e5f2 3a6b a0ab 90f4
+        8286 8441 8cf1 e3c2 e5f2 3a6b a0ab 90f4
         ff
 EOF
 
@@ -74,7 +74,7 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-        5c86 a8eb 1064 9cbf
+        c1c0 bfbe 5886 a8eb 1064 9cbf
 EOF
 
     ok binary_eq(
@@ -89,8 +89,8 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-        3085 8c8b 8440 8825 a849 e95b a97d 7f89
-        25a8 49e9 5bb8 e8b4 bf
+        c287 85c1 4088 25a8 49e9 5ba9 7d7f 8925
+        a849 e95b b8e8 b4bf
 EOF
 
 };
@@ -112,9 +112,9 @@ subtest 'encode responses' => sub {
             ]
         ),
         hstr(<<EOF) );
-        4882 6402 5985 aec3 771a 4b63 96d0 7abe
+        4882 6402 5885 aec3 771a 4b61 96d0 7abe
         9410 54d4 44a8 2005 9504 0b81 66e0 82a6
-        2d1b ff71 919d 29ad 1718 63c7 8f0b 97c8
+        2d1b ff6e 919d 29ad 1718 63c7 8f0b 97c8
         e9ae 82ae 43d3
 EOF
 
@@ -130,7 +130,7 @@ EOF
                 'location'      => 'https://www.example.com',
             ]
         ),
-        hstr("8c")
+        hstr("88c1 c0bf")
     );
 
     is $ctx->{ht_size} => 222, 'ht_size ok';
@@ -149,14 +149,13 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-    8484 4396 d07a be94 1054 d444 a820 0595
-    040b 8166 e084 a62d 1bff 5e83 9bd9 ab84
-    8483 837b ad94 e782 1dd7 f2e6 c7b3 35df
-    dfcd 5b39 60d5 af27 087f 3672 c1ab 270f
-    b529 1f95 8731 6065 c003 ed4e e5b1 063d
-    5007
+    bec1 7f01 96d0 7abe 9410 54d4 44a8 2005
+    9504 0b81 66e0 84a6 2d1b ffbf 5a83 9bd9
+    ab77 ad94 e782 1dd7 f2e6 c7b3 35df dfcd
+    5b39 60d5 af27 087f 3672 c1ab 270f b529
+    1f95 8731 6065 c003 ed4e e5b1 063d 5007
 EOF
-    is $ctx->{ht_size} => 215, 'ht_size ok';
+    is $ctx->{ht_size} => 255, 'ht_size ok';
 
 };
 

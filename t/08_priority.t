@@ -12,7 +12,7 @@ subtest 'priority frame' => sub {
     my $con = Protocol::HTTP2::Connection->new(SERVER);
 
     my $frame = $con->frame_encode( PRIORITY, 0, 1, [ 0, 32 ] );
-    ok binary_eq( $frame, hstr("0005 0200 0000 0001 0000 0000 1F") ),
+    ok binary_eq( $frame, hstr("0000 0502 0000 0000 0100 0000 001f") ),
       "PRIORITY";
 
     # Simulate client request
@@ -20,17 +20,17 @@ subtest 'priority frame' => sub {
     $con->new_peer_stream(1);
 
     my $res = $con->frame_decode( \$frame, 0 );
-    is $res, 13, "decoded correctly";
+    is $res, 14, "decoded correctly";
 
     $frame =
       $con->frame_encode( HEADERS, END_HEADERS, 1,
         { hblock => \"\x82", stream_dep => 0, weight => 32 } );
 
-    ok binary_eq( $frame, hstr("0006 0124 0000 0001 0000 0000 1F82") ),
+    ok binary_eq( $frame, hstr("000006 0124 0000 0001 0000 0000 1F82") ),
       "Headers with priority";
 
     $res = $con->frame_decode( \$frame, 0 );
-    is $res, 14, "decoded correctly";
+    is $res, 15, "decoded correctly";
 
 };
 

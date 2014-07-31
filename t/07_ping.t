@@ -29,11 +29,11 @@ subtest 'ping' => sub {
     }
 
     my $ping = $client->{con}->frame_encode( PING, 0, 0, \"HELLOSRV" );
-    ok binary_eq( $ping, hstr("0008 0600 0000 0000 4845 4c4c 4f53 5256") ),
+    ok binary_eq( $ping, hstr("0000 0806 0000 0000 0048 454c 4c4f 5352 56") ),
       "ping";
     $server->feed($ping);
     ok binary_eq( $ping = $server->next_frame,
-        hstr("0008 0601 0000 0000 4845 4c4c 4f53 5256") ),
+        hstr("0000 0806 0100 0000 0048 454c 4c4f 5352 56") ),
       "ping ack";
     is $server->next_frame, undef;
     $client->feed($ping);
