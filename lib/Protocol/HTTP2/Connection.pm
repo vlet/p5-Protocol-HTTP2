@@ -25,6 +25,8 @@ sub new {
             &SETTINGS_ENABLE_PUSH            => DEFAULT_ENABLE_PUSH,
             &SETTINGS_MAX_CONCURRENT_STREAMS => DEFAULT_MAX_CONCURRENT_STREAMS,
             &SETTINGS_INITIAL_WINDOW_SIZE    => DEFAULT_INITIAL_WINDOW_SIZE,
+            &SETTINGS_MAX_FRAME_SIZE         => DEFAULT_MAX_FRAME_SIZE,
+            &SETTINGS_MAX_HEADER_LIST_SIZE   => DEFAULT_MAX_HEADER_LIST_SIZE,
         },
 
         streams => {},
@@ -33,9 +35,6 @@ sub new {
         last_peer_stream => 0,
 
         encode_ctx => {
-
-            # HPACK. Reference Set
-            reference_set => {},
 
             # HPACK. Header Table
             header_table => [],
@@ -48,9 +47,6 @@ sub new {
         },
 
         decode_ctx => {
-
-            # HPACK. Reference Set
-            reference_set => {},
 
             # HPACK. Header Table
             header_table => [],
@@ -304,22 +300,23 @@ sub state_machine {
 # TODO: move this to some other module
 sub send_headers {
     my ( $self, $stream_id, $headers, $end ) = @_;
+    my $max_size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
 
     my $header_block = headers_encode( $self->encode_context, $headers );
 
     my $flags = $end ? END_STREAM : 0;
-    $flags |= END_HEADERS if length($header_block) <= MAX_PAYLOAD_SIZE;
+    $flags |= END_HEADERS if length($header_block) <= $max_size;
 
     $self->enqueue(
         $self->frame_encode( HEADERS, $flags, $stream_id,
-            { hblock => \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' ) }
+            { hblock => \substr( $header_block, 0, $max_size, '' ) }
         )
     );
     while ( length($header_block) > 0 ) {
-        my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? 0 : END_HEADERS;
+        my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
         $self->enqueue(
-            $self->frame_encode( CONTINUATION, $flags, $stream_id,
-                \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+            $self->frame_encode( CONTINUATION, $flags,
+                $stream_id, \substr( $header_block, 0, $max_size, '' )
             )
         );
     }
@@ -327,27 +324,23 @@ sub send_headers {
 
 sub send_pp_headers {
     my ( $self, $stream_id, $promised_id, $headers ) = @_;
+    my $max_size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
 
     my $header_block = headers_encode( $self->encode_context, $headers );
 
-    my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? END_HEADERS : 0;
+    my $flags = length($header_block) <= $max_size ? END_HEADERS : 0;
 
     $self->enqueue(
-        $self->frame_encode( PUSH_PROMISE,
-            $flags,
-            $stream_id,
-            [
-                $promised_id,
-                \substr( $header_block, 0, MAX_PAYLOAD_SIZE - 4, '' )
-            ]
+        $self->frame_encode( PUSH_PROMISE, $flags, $stream_id,
+            [ $promised_id, \substr( $header_block, 0, $max_size - 4, '' ) ]
         )
     );
 
     while ( length($header_block) > 0 ) {
-        my $flags = length($header_block) <= MAX_PAYLOAD_SIZE ? 0 : END_HEADERS;
+        my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
         $self->enqueue(
-            $self->frame_encode( CONTINUATION, $flags, $stream_id,
-                \substr( $header_block, 0, MAX_PAYLOAD_SIZE, '' )
+            $self->frame_encode( CONTINUATION, $flags,
+                $stream_id, \substr( $header_block, 0, $max_size, '' )
             )
         );
     }
@@ -362,7 +355,7 @@ sub send_data {
     }
     while (1) {
         my $l    = length($data);
-        my $size = MAX_PAYLOAD_SIZE;
+        my $size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
         for ( $l, $self->fcw_send, $self->stream_fcw_send($stream_id) ) {
             $size = $_ if $size > $_;
         }
@@ -449,11 +442,6 @@ sub fcw_update {
 sub ack_ping {
     my ( $self, $payload_ref ) = @_;
     $self->enqueue_first( $self->frame_encode( PING, ACK, 0, $payload_ref ) );
-}
-
-# TODO: Alternative services
-sub altsvc {
-    my ( $self, $port, $proto, $host, $origin ) = @_;
 }
 
 1;

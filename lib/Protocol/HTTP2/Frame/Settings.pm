@@ -1,8 +1,14 @@
 package Protocol::HTTP2::Frame::Settings;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(const_name :flags :errors);
+use Protocol::HTTP2::Constants qw(const_name :flags :errors :limits :settings);
 use Protocol::HTTP2::Trace qw(tracer);
+
+my %s_check = (
+    &SETTINGS_MAX_FRAME_SIZE => sub {
+        $_[0] <= MAX_PAYLOAD_SIZE && $_[0] >= DEFAULT_MAX_FRAME_SIZE;
+    },
+);
 
 sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
@@ -41,11 +47,18 @@ sub decode {
             # ignore unknown setting
             next;
         }
-        else {
-            tracer->debug( "\tSettings "
-                  . const_name( "settings", $key )
-                  . " = $value\n" );
+        elsif ( exists $s_check{$key}
+            && !$s_check{$key}->($value) )
+        {
+            tracer->debug( "\tInvalid value of setting "
+                  . const_name( "settings", $key ) . ": "
+                  . $value );
+            $con->error(PROTOCOL_ERROR);
+            return undef;
         }
+
+        tracer->debug(
+            "\tSettings " . const_name( "settings", $key ) . " = $value\n" );
         $con->setting( $key, $value );
     }
 

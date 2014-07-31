@@ -3,9 +3,9 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.09";
+our $VERSION = "0.10";
 
-our $draft = "13";
+our $draft = "14";
 
 sub ident_plain {
     'h2c-' . $draft;
@@ -57,15 +57,15 @@ never become production or even finished.
     | Preface                 |        +        |
     | Headers (de)compression |        +        |
     | Stream states           |        +        |
-    | Flow control            |        Â±        |
-    | Stream priority         |        Â±        |
+    | Flow control            |        ±        |
+    | Stream priority         |        ±        |
     | Server push             |        +        |
     | Connect method          |        -        |
 
 
     | Frame           | encoder | decoder |
     | --------------- |:-------:|:-------:|
-    | DATA            |    Â±    |    +    |
+    | DATA            |    ±    |    +    |
     | HEADERS         |    +    |    +    |
     | PRIORITY        |    +    |    +    |
     | RST_STREAM      |    +    |    +    |
@@ -74,14 +74,14 @@ never become production or even finished.
     | PING            |    +    |    +    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
-    | CONTINUATION    |    Â±    |    +    |
+    | CONTINUATION    |    ±    |    +    |
 
 
 =over
 
 =item - -- not implemeted
 
-=item Â± -- incomplete
+=item ± -- incomplete
 
 =item + -- implemented (may even work)
 

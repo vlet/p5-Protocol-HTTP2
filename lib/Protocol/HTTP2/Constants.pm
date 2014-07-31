@@ -5,7 +5,10 @@ use constant {
 
     # Header Compression
     MAX_INT_SIZE     => 4,
-    MAX_PAYLOAD_SIZE => ( 1 << 14 ) - 1,
+    MAX_PAYLOAD_SIZE => ( 1 << 23 ) - 1,
+
+    # Frame
+    FRAME_HEADER_SIZE => 9,
 
     # Flow control
     MAX_FCW_SIZE => ( 1 << 31 ) - 1,
@@ -15,12 +18,11 @@ use constant {
     DEFAULT_ENABLE_PUSH            => 1,
     DEFAULT_MAX_CONCURRENT_STREAMS => 100,
     DEFAULT_INITIAL_WINDOW_SIZE    => 65_535,
+    DEFAULT_MAX_FRAME_SIZE         => 16_384,
+    DEFAULT_MAX_HEADER_LIST_SIZE   => 65_536,
 
     # Priority
     DEFAULT_WEIGHT => 16,
-
-    # ALTSVC
-    DEFAULT_ALTSVC_MAX_AGE => 86_400,
 
     # Stream states
     IDLE        => 1,
@@ -47,13 +49,10 @@ use constant {
     GOAWAY        => 7,
     WINDOW_UPDATE => 8,
     CONTINUATION  => 9,
-    ALTSVC        => 0xA,
-    BLOCKED       => 0xB,
 
     # Flags
     ACK           => 0x1,
     END_STREAM    => 0x1,
-    END_SEGMENT   => 0x2,
     END_HEADERS   => 0x4,
     PADDED        => 0x8,
     PRIORITY_FLAG => 0x20,
@@ -78,6 +77,8 @@ use constant {
     SETTINGS_ENABLE_PUSH            => 2,
     SETTINGS_MAX_CONCURRENT_STREAMS => 3,
     SETTINGS_INITIAL_WINDOW_SIZE    => 4,
+    SETTINGS_MAX_FRAME_SIZE         => 5,
+    SETTINGS_MAX_HEADER_LIST_SIZE   => 6,
 
 };
 
@@ -86,7 +87,7 @@ our @ISA         = qw(Exporter);
 our %EXPORT_TAGS = (
     frame_types => [
         qw(DATA HEADERS PRIORITY RST_STREAM SETTINGS PUSH_PROMISE
-          PING GOAWAY WINDOW_UPDATE CONTINUATION ALTSVC BLOCKED)
+          PING GOAWAY WINDOW_UPDATE CONTINUATION)
     ],
     errors => [
         qw(NO_ERROR PROTOCOL_ERROR INTERNAL_ERROR FLOW_CONTROL_ERROR
@@ -94,20 +95,22 @@ our %EXPORT_TAGS = (
           COMPRESSION_ERROR CONNECT_ERROR ENHANCE_YOUR_CALM INADEQUATE_SECURITY
           )
     ],
-    preface => [qw(PREFACE)],
-    flags =>
-      [ qw(ACK END_STREAM END_SEGMENT END_HEADERS PADDED PRIORITY_FLAG) ],
+    preface  => [qw(PREFACE)],
+    flags    => [qw(ACK END_STREAM END_HEADERS PADDED PRIORITY_FLAG)],
     settings => [
         qw(SETTINGS_HEADER_TABLE_SIZE SETTINGS_ENABLE_PUSH
-          SETTINGS_MAX_CONCURRENT_STREAMS SETTINGS_INITIAL_WINDOW_SIZE)
+          SETTINGS_MAX_CONCURRENT_STREAMS SETTINGS_INITIAL_WINDOW_SIZE
+          SETTINGS_MAX_FRAME_SIZE SETTINGS_MAX_HEADER_LIST_SIZE)
     ],
     limits => [
         qw(MAX_INT_SIZE MAX_PAYLOAD_SIZE MAX_FCW_SIZE DEFAULT_WEIGHT
-          DEFAULT_ALTSVC_MAX_AGE
           DEFAULT_HEADER_TABLE_SIZE
           DEFAULT_MAX_CONCURRENT_STREAMS
           DEFAULT_ENABLE_PUSH
-          DEFAULT_INITIAL_WINDOW_SIZE)
+          DEFAULT_INITIAL_WINDOW_SIZE
+          DEFAULT_MAX_FRAME_SIZE
+          DEFAULT_MAX_HEADER_LIST_SIZE
+          FRAME_HEADER_SIZE)
     ],
     states    => [qw(IDLE RESERVED OPEN HALF_CLOSED CLOSED)],
     endpoints => [qw(CLIENT SERVER)],

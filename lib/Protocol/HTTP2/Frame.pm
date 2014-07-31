@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Protocol::HTTP2::Trace qw(tracer);
 use Protocol::HTTP2::Constants
-  qw(const_name :frame_types :errors :preface :states :flags);
+  qw(const_name :frame_types :errors :preface :states :flags :limits :settings);
 use Protocol::HTTP2::Frame::Data;
 use Protocol::HTTP2::Frame::Headers;
 use Protocol::HTTP2::Frame::Priority;
@@ -41,8 +41,10 @@ sub frame_encode {
     my ( $con, $type, $flags, $stream_id, $data_ref ) = @_;
 
     my $payload = $encoder{$type}->( $con, \$flags, $stream_id, $data_ref );
+    my $l = length $payload;
 
-    pack( 'nC2N', length($payload), $type, $flags, $stream_id ) . $payload;
+    pack( 'CnC2N', ( $l >> 16 ), ( $l & 0xFFFF ), $type, $flags, $stream_id )
+      . $payload;
 }
 
 sub preface_decode {
@@ -59,29 +61,36 @@ sub preface_encode {
 sub frame_header_decode {
     my ( undef, $buf_ref, $buf_offset ) = @_;
 
-    my ( $length, $type, $flags, $stream_id ) =
-      unpack( 'nC2N', substr( $$buf_ref, $buf_offset, 8 ) );
+    my ( $hl, $ll, $type, $flags, $stream_id ) =
+      unpack( 'CnC2N', substr( $$buf_ref, $buf_offset, FRAME_HEADER_SIZE ) );
 
-    $length    &= 0x3FFF;
+    my $length = ( $hl << 16 ) + $ll;
     $stream_id &= 0x7FFF_FFFF;
     return $length, $type, $flags, $stream_id;
 }
 
 sub frame_decode {
     my ( $con, $buf_ref, $buf_offset ) = @_;
-    return 0 if length($$buf_ref) - $buf_offset < 8;
+    return 0 if length($$buf_ref) - $buf_offset < FRAME_HEADER_SIZE;
 
     my ( $length, $type, $flags, $stream_id ) =
       $con->frame_header_decode( $buf_ref, $buf_offset );
 
-    return 0 if length($$buf_ref) - $buf_offset - 8 - $length < 0;
+    if ( $length > $con->setting(SETTINGS_MAX_FRAME_SIZE) ) {
+        tracer->debug("Frame is too large: $length\n");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
+
+    return 0
+      if length($$buf_ref) - $buf_offset - FRAME_HEADER_SIZE - $length < 0;
 
     # Unknown type of frame
     if ( !exists $frame_class{$type} ) {
         tracer->debug("Unknown type of frame: $type\n");
 
         # ignore it
-        return 8 + $length;
+        return FRAME_HEADER_SIZE + $length;
     }
 
     tracer->debug(
@@ -113,14 +122,14 @@ sub frame_decode {
     }
 
     return undef
-      unless
-      defined $decoder{$type}->( $con, $buf_ref, $buf_offset + 8, $length );
+      unless defined $decoder{$type}
+      ->( $con, $buf_ref, $buf_offset + FRAME_HEADER_SIZE, $length );
 
     # Arrived frame may change state of stream
     $con->state_machine( 'recv', $type, $flags, $stream_id )
       if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
 
-    return 8 + $length;
+    return FRAME_HEADER_SIZE + $length;
 }
 
 =pod
@@ -135,24 +144,23 @@ sub frame_decode {
 
                         +-END_STREAM 0x1
                         |   +-ACK 0x1
-                        |   |   +-END_SEGMENT 0x2
-                        |   |   |   +-END_HEADERS 0x4
-                        |   |   |   |   +-PADDED 0x8
-                        |   |   |   |   |   +-PRIORITY 0x20
-                        |   |   |   |   |   |        +-stream id (value)
-                        |   |   |   |   |   |        |
-    | frame type\flag | V | V | V | V | V | V |   |  V  |
-    | --------------- |:-:|:-:|:-:|:-:|:-:|:-:| - |:---:|
-    | DATA            | x |   | x |   | x |   |   |  x  |
-    | HEADERS         | x |   | x | x | x | x |   |  x  |
-    | PRIORITY        |   |   |   |   |   |   |   |  x  |
-    | RST_STREAM      |   |   |   |   |   |   |   |  x  |
-    | SETTINGS        |   | x |   |   |   |   |   |  0  |
-    | PUSH_PROMISE    |   |   |   | x | x |   |   |  x  |
-    | PING            |   | x |   |   |   |   |   |  0  |
-    | GOAWAY          |   |   |   |   |   |   |   |  0  |
-    | WINDOW_UPDATE   |   |   |   |   |   |   |   | 0/x |
-    | CONTINUATION    |   |   |   | x | x |   |   |  x  |
+                        |   |   +-END_HEADERS 0x4
+                        |   |   |   +-PADDED 0x8
+                        |   |   |   |   +-PRIORITY 0x20
+                        |   |   |   |   |        +-stream id (value)
+                        |   |   |   |   |        |
+    | frame type\flag | V | V | V | V | V |   |  V  |
+    | --------------- |:-:|:-:|:-:|:-:|:-:| - |:---:|
+    | DATA            | x |   |   | x |   |   |  x  |
+    | HEADERS         | x |   | x | x | x |   |  x  |
+    | PRIORITY        |   |   |   |   |   |   |  x  |
+    | RST_STREAM      |   |   |   |   |   |   |  x  |
+    | SETTINGS        |   | x |   |   |   |   |  0  |
+    | PUSH_PROMISE    |   |   | x | x |   |   |  x  |
+    | PING            |   | x |   |   |   |   |  0  |
+    | GOAWAY          |   |   |   |   |   |   |  0  |
+    | WINDOW_UPDATE   |   |   |   |   |   |   | 0/x |
+    | CONTINUATION    |   |   | x | x |   |   |  x  |
 
 =cut
 

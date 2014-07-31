@@ -178,23 +178,13 @@ sub stream_headers_done {
     # Clear header_block
     $s->{header_block} = '';
 
-    my $rs = $self->decode_context->{reference_set};
     my $eh = $self->decode_context->{emitted_headers};
 
-    # TODO: http2 -> http/1.1 headers conversion
-    my $h = Hash::MultiValue->new(@$eh);
-    for my $kv_str ( keys %$rs ) {
-        my ( $key, $value ) = @{ $rs->{$kv_str} };
-        next if grep { $_ eq $value } $h->get_all($key);
-        $h->add( $key, $value );
-    }
-
     if ( $s->{promised_sid} ) {
-        $self->{streams}->{ $s->{promised_sid} }->{pp_headers} =
-          [ $h->flatten ];
+        $self->{streams}->{ $s->{promised_sid} }->{pp_headers} = $eh;
     }
     else {
-        $s->{headers} = [ $h->flatten ];
+        $s->{headers} = $eh;
     }
 
     # Clear emitted headers

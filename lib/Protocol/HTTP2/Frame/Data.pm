@@ -39,9 +39,9 @@ sub decode {
         $con->stream_error( $frame_ref->{stream}, FLOW_CONTROL_ERROR );
         return $length;
     }
-    $con->fcw_update() if $fcw < MAX_PAYLOAD_SIZE;
+    $con->fcw_update() if $fcw < $con->setting(SETTINGS_MAX_FRAME_SIZE);
     $con->stream_fcw_update( $frame_ref->{stream} )
-      if $stream_fcw < MAX_PAYLOAD_SIZE
+      if $stream_fcw < $con->setting(SETTINGS_MAX_FRAME_SIZE)
       && !( $frame_ref->{flags} & END_STREAM );
 
     return $length unless $dblock_size;
