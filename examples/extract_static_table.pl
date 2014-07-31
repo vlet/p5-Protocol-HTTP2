@@ -25,29 +25,28 @@ use strict;
 use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
-our ( %stable, %rstable );
-our @EXPORT = qw(%stable %rstable);
+our ( @stable, %rstable );
+our @EXPORT = qw(@stable %rstable);
 
-%stable = (
+@stable = (
 EOF
 
 while (@nodes) {
     my ( $idx, $name, $value ) = map { $_->textContent } splice( @nodes, 0, 3 );
     last unless $idx;
-    printf qq{    %2d => [ "%s", "%s" ],\n}, $idx, $name, $value;
+    printf qq{    [ "%s", "%s" ],\n}, $name, $value;
 }
 
 print <<'EOF';
 );
 
-for my $k ( sort { $a <=> $b } keys %stable ) {
-    my $key = join ' ', @{ $stable{$k} };
-    $rstable{$key} = $k;
-    $rstable{ $stable{$k}->[0] . ' ' } = $k
-      if ( $stable{$k}->[1] ne ''
-        && !exists $rstable{ $stable{$k}->[0] . ' ' } );
+for my $k ( 0 .. $#stable ) {
+    my $key = join ' ', @{ $stable[$k] };
+    $rstable{$key} = $k + 1;
+    $rstable{ $stable[$k]->[0] . ' ' } = $k + 1
+      if ( $stable[$k]->[1] ne ''
+        && !exists $rstable{ $stable[$k]->[0] . ' ' } );
 }
 
 1;
 EOF
-
