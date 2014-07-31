@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.10 2014-07-31T21:25:59Z
+    - updated HTTP/2 to draft 14
+    - updated HPACK to draft 09
+    - fixed tests
+
 0.09 2014-07-08T13:16:24Z
 
     - another fix for 09_client_server_tcp.t (check features of Net::SSLeay)
