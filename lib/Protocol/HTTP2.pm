@@ -57,15 +57,15 @@ never become production or even finished.
     | Preface                 |        +        |
     | Headers (de)compression |        +        |
     | Stream states           |        +        |
-    | Flow control            |        ±        |
-    | Stream priority         |        ±        |
+    | Flow control            |        Â±        |
+    | Stream priority         |        Â±        |
     | Server push             |        +        |
     | Connect method          |        -        |
 
 
     | Frame           | encoder | decoder |
     | --------------- |:-------:|:-------:|
-    | DATA            |    ±    |    +    |
+    | DATA            |    Â±    |    +    |
     | HEADERS         |    +    |    +    |
     | PRIORITY        |    +    |    +    |
     | RST_STREAM      |    +    |    +    |
@@ -74,14 +74,14 @@ never become production or even finished.
     | PING            |    +    |    +    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
-    | CONTINUATION    |    ±    |    +    |
+    | CONTINUATION    |    Â±    |    +    |
 
 
 =over
 
 =item - -- not implemeted
 
-=item ± -- incomplete
+=item Â± -- incomplete
 
 =item + -- implemented (may even work)
 
