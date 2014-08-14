@@ -166,7 +166,6 @@ sub headers_decode {
             if ( $index <= @stable ) {
                 my ( $key, $value ) = @{ $stable[ $index - 1 ] };
                 push @$eh, $key, $value;
-                add_to_ht( $context, $key, $value );
                 tracer->debug("$key = $value\n");
             }
             elsif ( $index > @stable + @$ht ) {
@@ -227,7 +226,7 @@ sub headers_decode {
             my $key;
 
             if ( $index <= @stable ) {
-                $key = $stable[ $index - @$ht - 1 ]->[0];
+                $key = $stable[ $index - 1 ]->[0];
             }
             elsif ( $index > @stable + @$ht ) {
                 tracer->error(
@@ -290,7 +289,7 @@ sub headers_encode {
 
   HLOOP:
     for my $n ( 0 .. $#$headers / 2 ) {
-        my $header = $headers->[ 2 * $n ];
+        my $header = lc( $headers->[ 2 * $n ] );
         my $value  = $headers->[ 2 * $n + 1 ];
         my $hdr;
 
@@ -308,21 +307,7 @@ sub headers_encode {
             next HLOOP;
         }
 
-        for my $i ( 0 .. $#$ht ) {
-            next
-              unless $ht->[$i]->[0] eq $header
-              && !exists $rstable{ $header . ' ' . $value };    # ???
-            $hdr = int_encode( $i + @stable + 1, 6 );
-            vec( $hdr, 3, 2 ) = 1;
-            $hdr .= str_encode($value);
-            tracer->debug( "\talready in header table, index "
-                  . ( $i + 1 )
-                  . ", but different value\n" );
-            $res .= $hdr;
-            next HLOOP;
-        }
-
-        # 4.2 Indexed header field representation
+        # 7.1 Indexed header field representation
         if ( exists $rstable{ $header . ' ' . $value } ) {
             $hdr = int_encode( $rstable{ $header . ' ' . $value }, 7 );
             vec( $hdr, 7, 1 ) = 1;
@@ -331,26 +316,27 @@ sub headers_encode {
                   . " from table\n" );
         }
 
-        # 4.3.1 Literal Header Field with Incremental Indexing
+        # 7.2.1 Literal Header Field with Incremental Indexing
         # (Indexed Name)
         elsif ( exists $rstable{ $header . ' ' } ) {
             $hdr = int_encode( $rstable{ $header . ' ' }, 6 );
             vec( $hdr, 3, 2 ) = 1;
             $hdr .= str_encode($value);
+            add_to_ht( $context, $header, $value );
             tracer->debug( "\tLiteral header "
                   . $rstable{ $header . ' ' }
                   . " indexed name\n" );
         }
 
-        # 4.3.1 Literal Header Field with Incremental Indexing
+        # 7.2.1 Literal Header Field with Incremental Indexing
         # (New Name)
         else {
             $hdr = pack( 'C', 0x40 );
             $hdr .= str_encode($header) . str_encode($value);
+            add_to_ht( $context, $header, $value );
             tracer->debug("\tLiteral header new name\n");
         }
 
-        add_to_ht( $context, $header, $value );
         $res .= $hdr;
     }
 
