@@ -74,7 +74,7 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-        c1c0 bfbe 5886 a8eb 1064 9cbf
+        8286 84be 5886 a8eb 1064 9cbf
 EOF
 
     ok binary_eq(
@@ -89,7 +89,7 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-        c287 85c1 4088 25a8 49e9 5ba9 7d7f 8925
+        8287 85bf 4088 25a8 49e9 5ba9 7d7f 8925
         a849 e95b b8e8 b4bf
 EOF
 
@@ -124,13 +124,13 @@ EOF
         headers_encode(
             $ctx,
             [
-                ':status'       => 200,
+                ':status'       => 307,
                 'cache-control' => 'private',
                 'date'          => 'Mon, 21 Oct 2013 20:13:21 GMT',
                 'location'      => 'https://www.example.com',
             ]
         ),
-        hstr("88c1 c0bf")
+        hstr("4803 3330 37c1 c0bf")
     );
 
     is $ctx->{ht_size} => 222, 'ht_size ok';
@@ -149,13 +149,13 @@ EOF
             ]
         ),
         hstr(<<EOF) );
-    bec1 7f01 96d0 7abe 9410 54d4 44a8 2005
-    9504 0b81 66e0 84a6 2d1b ffbf 5a83 9bd9
-    ab77 ad94 e782 1dd7 f2e6 c7b3 35df dfcd
-    5b39 60d5 af27 087f 3672 c1ab 270f b529
-    1f95 8731 6065 c003 ed4e e5b1 063d 5007
+        88c1 6196 d07a be94 1054 d444 a820 0595
+        040b 8166 e084 a62d 1bff c05a 839b d9ab
+        77ad 94e7 821d d7f2 e6c7 b335 dfdf cd5b
+        3960 d5af 2708 7f36 72c1 ab27 0fb5 291f
+        9587 3160 65c0 03ed 4ee5 b106 3d50 07
 EOF
-    is $ctx->{ht_size} => 255, 'ht_size ok';
+    is $ctx->{ht_size} => 215, 'ht_size ok';
 
 };
 
