@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.11 2014-08-14T12:07:48Z
+    - dropped Hash::MultiValue requirement
+    - fixed HPACK
+    - fixed HPACK test
+
 0.10 2014-07-31T21:25:59Z
     - updated HTTP/2 to draft 14
     - updated HPACK to draft 09
