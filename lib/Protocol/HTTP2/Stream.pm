@@ -1,7 +1,6 @@
 package Protocol::HTTP2::Stream;
 use strict;
 use warnings;
-use Hash::MultiValue;
 use Protocol::HTTP2::Constants qw(:states :endpoints :settings :frame_types
   :limits);
 use Protocol::HTTP2::HeaderCompression qw( headers_decode );
