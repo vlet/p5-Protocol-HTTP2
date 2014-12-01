@@ -2,6 +2,10 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.13 2014-12-01T07:56:43Z
+    - updated HTTP/2 to draft 16
+    - added draft_interop version (14) for interoperability
+
 0.12 2014-10-28T12:18:22Z
     - updated HTTP/2 to draft 15
 

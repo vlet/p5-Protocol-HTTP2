@@ -1,5 +1,5 @@
 {
-   "abstract" : "HTTP/2 protocol (draft 15) implementation",
+   "abstract" : "HTTP/2 protocol (draft 16) implementation",
    "author" : [
       "Vladimir Lettiev <thecrux@gmail.com>"
    ],
@@ -71,5 +71,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "0.12"
+   "version" : "0.13"
 }
