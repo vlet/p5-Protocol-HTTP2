@@ -230,7 +230,7 @@ sub state_machine {
             $self->stream_promised_sid( $stream_id, undef )
               if $flags & END_HEADERS;
         }
-        else {
+        elsif ( $type != PRIORITY ) {
             tracer->error(
                 sprintf "invalid frame type %s for current stream state %s\n",
                 const_name( "frame_types", $type ),

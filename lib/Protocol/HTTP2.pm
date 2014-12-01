@@ -3,9 +3,10 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.12";
+our $VERSION = "0.13";
 
-our $draft = "15";
+our $draft = "16";
+our $draft_interop = "14";
 
 sub ident_plain {
     'h2c-' . $draft;
@@ -15,6 +16,14 @@ sub ident_tls {
     'h2-' . $draft;
 }
 
+sub ident_interop_plain {
+    'h2c-' . $draft_interop;
+}
+
+sub ident_interop_tls {
+    'h2-' . $draft_interop;
+}
+
 1;
 __END__
 
@@ -22,24 +31,30 @@ __END__
 
 =head1 NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 15) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 16) implementation
 
 =head1 SYNOPSIS
 
     use Protocol::HTTP2;
 
     # get current draft version
-    print $Protocol::HTTP2::draft;      # 15
+    print $Protocol::HTTP2::draft;          # 16
+
+    # get current interoperate draft version (compatible with current draft
+    # protocol version for interoperability with over implementations)
+    print $Protocol::HTTP2::draft_interop;  # 14
 
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;   # h2-15
+    print Protocol::HTTP2::ident_tls;           # h2-16
+    print Protocol::HTTP2::ident_interop_tls;   # h2-14
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain; # h2c-15
+    print Protocol::HTTP2::ident_plain;         # h2c-16
+    print Protocol::HTTP2::ident_interop_plain; # h2c-14
 
 =head1 DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 15) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol (draft 16) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).

@@ -54,7 +54,7 @@ Protocol::HTTP2::Server - HTTP/2 server
 
                     # HTTP/1.1 Headers
                     headers   => [
-                        'server'         => 'perl-Protocol-HTTP2/0.07',
+                        'server'         => 'perl-Protocol-HTTP2/0.13',
                         'content-length' => length($message),
                         'cache-control'  => 'max-age=3600',
                         'date'           => 'Fri, 18 Apr 2014 07:27:11 GMT',
@@ -126,7 +126,7 @@ Callback invoked when receiving client's requests
             ':status' => 200,
             stream_id => $stream_id,
             headers   => [
-                'server'         => 'perl-Protocol-HTTP2/0.01',
+                'server'         => 'perl-Protocol-HTTP2/0.13',
                 'content-length' => length($message),
             ],
             data => $message,
@@ -141,7 +141,7 @@ Use HTTP/1.1 Upgrade to upgrade protocol from HTTP/1.1 to HTTP/2. Upgrade
 possible only on plain (non-tls) connection.
 
 See
-L<Starting HTTP/2 for "http" URIs|http://tools.ietf.org/html/draft-ietf-httpbis-http2-15#section-3.2>
+L<Starting HTTP/2 for "http" URIs|http://tools.ietf.org/html/draft-ietf-httpbis-http2-16#section-3.2>
 
 =item on_error => sub {...}
 
@@ -156,7 +156,7 @@ Callback invoked on protocol errors
 
 Callback invoked every time when http/2 streams change their state.
 See
-L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-15#section-5.1>
+L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-16#section-5.1>
 
     on_change_state => sub {
         my ( $stream_id, $previous_state, $current_state ) = @_;
@@ -255,7 +255,7 @@ sub response {
 =head3 push
 
 Prepare Push Promise. See
-L<Server Push|http://tools.ietf.org/html/draft-ietf-httpbis-http2-15#section-8.2>
+L<Server Push|http://tools.ietf.org/html/draft-ietf-httpbis-http2-16#section-8.2>
 
     # Example of push inside of on_request callback
     on_request => sub {

@@ -32,7 +32,7 @@ Protocol::HTTP2::Client - HTTP/2 client
         # HTTP/1.1 headers
         headers      => [
             'accept'     => '*/*',
-            'user-agent' => 'perl-Protocol-HTTP2/0.06',
+            'user-agent' => 'perl-Protocol-HTTP2/0.13',
         ],
 
         # Callback when receive server's response
@@ -138,7 +138,7 @@ Use HTTP/1.1 Upgrade to upgrade protocol from HTTP/1.1 to HTTP/2. Upgrade
 possible only on plain (non-tls) connection.
 
 See
-L<Starting HTTP/2 for "http" URIs|http://tools.ietf.org/html/draft-ietf-httpbis-http2-15#section-3.2>
+L<Starting HTTP/2 for "http" URIs|http://tools.ietf.org/html/draft-ietf-httpbis-http2-16#section-3.2>
 
 =item on_error => sub {...}
 
@@ -153,7 +153,7 @@ Callback invoked on protocol errors
 
 Callback invoked every time when http/2 streams change their state.
 See
-L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-15#section-5.1>
+L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-16#section-5.1>
 
     on_change_state => sub {
         my ( $stream_id, $previous_state, $current_state ) = @_;
