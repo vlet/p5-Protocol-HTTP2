@@ -1,29 +1,29 @@
 # NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 16) implementation
+Protocol::HTTP2 - HTTP/2 protocol (draft 17) implementation
 
 # SYNOPSIS
 
     use Protocol::HTTP2;
 
     # get current draft version
-    print $Protocol::HTTP2::draft;          # 16
+    print $Protocol::HTTP2::draft;          # 17
 
     # get current interoperate draft version (compatible with current draft
     # protocol version for interoperability with over implementations)
     print $Protocol::HTTP2::draft_interop;  # 14
 
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;           # h2-16
+    print Protocol::HTTP2::ident_tls;           # h2-17
     print Protocol::HTTP2::ident_interop_tls;   # h2-14
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain;         # h2c-16
+    print Protocol::HTTP2::ident_plain;         # h2c-17
     print Protocol::HTTP2::ident_interop_plain; # h2c-14
 
 # DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 16) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol (draft 17) implementation with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -83,8 +83,8 @@ object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol:
 
 ## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol::HTTP2::HeaderCompression)
 
-Module implements HPACK (draft 09) - Header Compression for HTTP/2.
-[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-09](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-09)
+Module implements HPACK (draft 11) - Header Compression for HTTP/2.
+[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-11](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-11)
 
 ## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
 
