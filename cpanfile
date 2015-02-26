@@ -1,5 +1,4 @@
 requires 'perl', '5.008001';
-requires 'Log::Dispatch', '2.006';
 
 # (encode,decode)_base64url
 requires 'MIME::Base64', '3.11';
