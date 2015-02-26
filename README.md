@@ -83,8 +83,8 @@ object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol:
 
 ## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol::HTTP2::HeaderCompression)
 
-Module implements HPACK (draft 11) - Header Compression for HTTP/2.
-[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-11](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-11)
+Module implements HPACK (draft 12) - Header Compression for HTTP/2.
+[http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-12](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-12)
 
 ## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
 

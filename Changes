@@ -2,6 +2,13 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.15 2015-02-26T20:39:20Z
+    - Splited settings for decoder/encoder
+    - Allow to setup custom settings in Server/Client constructor
+    - Fixed bug with settings packing/unpacking
+    - Dropper Log::Dispatch dependency
+    - updated HPACK to draft 12
+
 0.14 2015-02-11T14:03:22Z
     - updated HTTP/2 to draft 17
     - updated HPACK  to draft 11

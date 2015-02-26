@@ -45,7 +45,6 @@
       },
       "runtime" : {
          "requires" : {
-            "Log::Dispatch" : "2.006",
             "MIME::Base64" : "3.11",
             "perl" : "5.008005"
          }
@@ -71,5 +70,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "0.14"
+   "version" : "0.15"
 }
