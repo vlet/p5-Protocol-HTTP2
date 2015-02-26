@@ -4,7 +4,7 @@ use Test::More;
 use lib 't/lib';
 use PH2Test;
 use Protocol::HTTP2::Connection;
-use Protocol::HTTP2::Constants qw(:endpoints :limits);
+use Protocol::HTTP2::Constants qw(:endpoints :limits :settings);
 
 BEGIN {
     use_ok( 'Protocol::HTTP2::HeaderCompression',
@@ -99,7 +99,7 @@ subtest 'encode responses' => sub {
 
     my $con = Protocol::HTTP2::Connection->new(SERVER);
     my $ctx = $con->encode_context;
-    $ctx->{max_ht_size} = 256;
+    $ctx->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} = 256;
 
     ok binary_eq(
         headers_encode(
@@ -159,86 +159,87 @@ EOF
 
 };
 
-done_testing();
-__END__
-
 subtest 'decode requests' => sub {
-    my $decoder = Protocol::HTTP2::HeaderCompression->new;
 
-    is $decoder->headers_decode( \hstr(<<EOF), \my @headers ), 17;
-            8287 8644 8ce7 cf9b ebe8 9b6f b16f a9b6
-            ff
+    my $con = Protocol::HTTP2::Connection->new(SERVER);
+    my $ctx = $con->decode_context;
+
+    my $buf = hstr(<<EOF);
+        8286 8441 8cf1 e3c2 e5f2 3a6b a0ab 90f4
+        ff
 EOF
-    is_deeply \@headers,
+    is headers_decode( $con, \$buf, 0, length $buf ), length($buf),
+      "correct offset";
+
+    is_deeply $ctx->{emitted_headers},
       [
-        [ ':method'    => 'GET' ],
-        [ ':scheme'    => 'http' ],
-        [ ':path'      => '/' ],
-        [ ':authority' => 'www.example.com' ]
-      ]
-      or diag explain \@headers;
+        ':method'    => 'GET',
+        ':scheme'    => 'http',
+        ':path'      => '/',
+        ':authority' => 'www.example.com'
+      ],
+      "emitted headers";
+    $ctx->{emitted_headers} = [];
+    is_deeply $ctx->{header_table}, [ [ ':authority' => 'www.example.com' ] ],
+      "dynamic table";
+    is $ctx->{ht_size}, 57, "correct table size";
 
-    @headers = ();
-
-    is $decoder->headers_decode( \hstr(<<EOF), \@headers ), 8;
-        5c86 b9b9 9495 56bf
-EOF
-
-    is_deeply \@headers, [ [ 'cache-control' => 'no-cache' ], ]
-      or diag explain \@headers;
-
-    is_deeply $decoder->{_reference_set},
-      {
+    $buf = hstr('8286 84be 5886 a8eb 1064 9cbf');
+    is headers_decode( $con, \$buf, 0, length $buf ), length($buf),
+      "correct offset";
+    is_deeply $ctx->{emitted_headers},
+      [
         ':method'       => 'GET',
         ':scheme'       => 'http',
         ':path'         => '/',
         ':authority'    => 'www.example.com',
         'cache-control' => 'no-cache',
-      }
-      or diag explain $decoder->{_reference_set};
+      ],
+      "emitted headers";
+    $ctx->{emitted_headers} = [];
+    is_deeply $ctx->{header_table}, [
+        [
+            'cache-control' => 'no-cache'
+        ],
 
-    @headers = ();
+        [ ':authority' => 'www.example.com' ]
+      ],
+      "dynamic table";
+    is $ctx->{ht_size}, 110, "correct table size";
 
-    is $decoder->headers_decode( \hstr(<<EOF), \@headers ), 25;
-    3085 8c8b 8440 8857 1c5c db73 7b2f af89
-    571c 5cdb 7372 4d9c 57
+    $buf = hstr(<<EOF);
+        8287 85bf 4088 25a8 49e9 5ba9 7d7f 8925
+        a849 e95b b8e8 b4bf
 EOF
-
-    is_deeply \@headers,
+    is headers_decode( $con, \$buf, 0, length $buf ), length($buf),
+      "correct offset";
+    is_deeply $ctx->{emitted_headers},
       [
-        [ ':method'    => 'GET' ],
-        [ ':scheme'    => 'https' ],
-        [ ':path'      => '/index.html' ],
-        [ ':authority' => 'www.example.com' ],
-        [ 'custom-key' => 'custom-value' ],
-      ]
-      or diag explain \@headers;
-
-    is_deeply $decoder->{_reference_set},
-      {
         ':method'    => 'GET',
         ':scheme'    => 'https',
         ':path'      => '/index.html',
         ':authority' => 'www.example.com',
         'custom-key' => 'custom-value',
-      },
-      "Reference set"
-      or diag explain $decoder->{_reference_set};
+      ],
+      "emitted headers";
+    is_deeply $ctx->{header_table}, [
+        [
+            'custom-key' => 'custom-value'
+        ],
+        [
+            'cache-control' => 'no-cache'
+        ],
 
-    is_deeply $decoder->{_header_table},
-      [
-        [ 'custom-key'    => 'custom-value' ],
-        [ ':path'         => '/index.html' ],
-        [ ':scheme'       => 'https' ],
-        [ 'cache-control' => 'no-cache' ],
-        [ ':authority'    => 'www.example.com' ],
-        [ ':path'         => '/' ],
-        [ ':scheme'       => 'http' ],
-        [ ':method'       => 'GET' ],
-      ]
-      or diag explain $decoder->{_header_table};
+        [ ':authority' => 'www.example.com' ]
+      ],
+      "dynamic table";
+    is $ctx->{ht_size}, 164, "correct table size";
 
 };
+
+done_testing();
+__END__
+
 
 subtest 'decode responses' => sub {
     my $decoder = Protocol::HTTP2::HeaderCompression->new;
