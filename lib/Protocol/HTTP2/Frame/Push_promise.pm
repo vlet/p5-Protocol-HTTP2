@@ -15,7 +15,7 @@ sub decode {
         $frame_ref->{stream} == 0
 
         # PP frames MUST be allowed
-        || !$con->setting(SETTINGS_ENABLE_PUSH)
+        || !$con->dec_setting(SETTINGS_ENABLE_PUSH)
       )
     {
         $con->error(PROTOCOL_ERROR);
