@@ -170,10 +170,13 @@ L<Stream States|http://tools.ietf.org/html/draft-ietf-httpbis-http2-17#section-5
 sub new {
     my ( $class, %opts ) = @_;
     my $self = {
-        con   => undef,
-        input => '',
+        con      => undef,
+        input    => '',
+        settings => {
+            &SETTINGS_MAX_CONCURRENT_STREAMS => DEFAULT_MAX_CONCURRENT_STREAMS,
+            exists $opts{settings} ? %{ delete $opts{settings} } : ()
+        },
     };
-
     if ( exists $opts{on_request} ) {
         $self->{cb} = delete $opts{on_request};
         $opts{on_new_peer_stream} = sub {
@@ -192,15 +195,12 @@ sub new {
           }
     }
 
-    $self->{con} = Protocol::HTTP2::Connection->new( SERVER, %opts );
+    $self->{con} =
+      Protocol::HTTP2::Connection->new( SERVER, %opts,
+        settings => $self->{settings} );
     $self->{con}->enqueue(
-        $self->{con}->frame_encode( SETTINGS, 0, 0,
-            {
-                &SETTINGS_MAX_CONCURRENT_STREAMS =>
-                  DEFAULT_MAX_CONCURRENT_STREAMS
-            }
-        )
-    ) unless $self->{con}->upgrade;
+        $self->{con}->frame_encode( SETTINGS, 0, 0, $self->{settings} ) )
+      unless $self->{con}->upgrade;
 
     bless $self, $class;
 }

@@ -8,24 +8,19 @@ use Protocol::HTTP2::Trace qw(tracer);
 
 # Streams related part of Protocol::HTTP2::Conntection
 
-sub default_stream {
-    my $self = shift;
-    {
-        'state'      => IDLE,
-        'weight'     => DEFAULT_WEIGHT,
-        'stream_dep' => 0,
-        'fcw_recv'   => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-        'fcw_send'   => $self->setting(SETTINGS_INITIAL_WINDOW_SIZE),
-    };
-}
-
 sub new_stream {
     my $self = shift;
     return undef if $self->goaway;
 
     $self->{last_stream} += 2
       if exists $self->{streams}->{ $self->{type} == CLIENT ? 1 : 2 };
-    $self->{streams}->{ $self->{last_stream} } = $self->default_stream;
+    $self->{streams}->{ $self->{last_stream} } = {
+        'state'      => IDLE,
+        'weight'     => DEFAULT_WEIGHT,
+        'stream_dep' => 0,
+        'fcw_recv'   => $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+        'fcw_send'   => $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+    };
     return $self->{last_stream};
 }
 
@@ -39,7 +34,13 @@ sub new_peer_stream {
         return undef;
     }
     $self->{last_peer_stream} = $stream_id;
-    $self->{streams}->{$stream_id} = $self->default_stream;
+    $self->{streams}->{$stream_id} = {
+        'state'      => IDLE,
+        'weight'     => DEFAULT_WEIGHT,
+        'stream_dep' => 0,
+        'fcw_recv'   => $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+        'fcw_send'   => $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+    };
     $self->{on_new_peer_stream}->($stream_id)
       if exists $self->{on_new_peer_stream};
 

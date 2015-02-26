@@ -105,7 +105,9 @@ sub evict_ht {
 
     my $ht = $context->{header_table};
 
-    while ( $context->{ht_size} + $size > $context->{max_ht_size} ) {
+    while ( $context->{ht_size} + $size >
+        $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} )
+    {
         my $n      = $#$ht;
         my $kv_ref = pop @$ht;
         $context->{ht_size} -=
@@ -120,7 +122,7 @@ sub evict_ht {
 sub add_to_ht {
     my ( $context, $key, $value ) = @_;
     my $size = length($key) + length($value) + 32;
-    return () if $size > $context->{max_ht_size};
+    return () if $size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE};
 
     my @evicted = evict_ht( $context, $size );
 
@@ -259,15 +261,17 @@ sub headers_decode {
             return $offset unless $size;
 
             # It's not possible to increase size of HEADER_TABLE
-            if ( $size > $con->setting(&SETTINGS_HEADER_TABLE_SIZE) ) {
+            if (
+                $ht_size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} )
+            {
                 tracer->error( "Peer attempt to increase "
                       . "SETTINGS_HEADER_TABLE_SIZE higher than current size: "
-                      . "$size > "
-                      . $con->setting(&SETTINGS_HEADER_TABLE_SIZE) );
+                      . "$ht_size > "
+                      . $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} );
                 $con->error(COMPRESSION_ERROR);
                 return undef;
             }
-            $context->{max_ht_size} = $ht_size;
+            $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} = $ht_size;
             evict_ht( $context, 0 );
             $offset += $size;
         }

@@ -76,7 +76,7 @@ sub frame_decode {
     my ( $length, $type, $flags, $stream_id ) =
       $con->frame_header_decode( $buf_ref, $buf_offset );
 
-    if ( $length > $con->setting(SETTINGS_MAX_FRAME_SIZE) ) {
+    if ( $length > $con->dec_setting(SETTINGS_MAX_FRAME_SIZE) ) {
         tracer->debug("Frame is too large: $length\n");
         $con->error(PROTOCOL_ERROR);
         return undef;

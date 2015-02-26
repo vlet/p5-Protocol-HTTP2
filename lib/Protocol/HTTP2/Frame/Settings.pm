@@ -39,9 +39,9 @@ sub decode {
         return undef;
     }
 
-    my @settings = unpack( '(SN)*', substr( $$buf_ref, $buf_offset, $length ) );
+    my @settings = unpack( '(nN)*', substr( $$buf_ref, $buf_offset, $length ) );
     while ( my ( $key, $value ) = splice @settings, 0, 2 ) {
-        if ( !defined $con->setting($key) ) {
+        if ( !defined $con->enc_setting($key) ) {
             tracer->debug("\tUnknown setting $key\n");
 
             # ignore unknown setting
@@ -59,7 +59,7 @@ sub decode {
 
         tracer->debug(
             "\tSettings " . const_name( "settings", $key ) . " = $value\n" );
-        $con->setting( $key, $value );
+        $con->enc_setting( $key, $value );
     }
 
     $con->accept_settings();
@@ -73,7 +73,7 @@ sub encode {
         tracer->debug( "\tSettings "
               . const_name( "settings", $key )
               . " = $data->{$key}\n" );
-        $payload .= pack( 'SN', $key, $data->{$key} );
+        $payload .= pack( 'nN', $key, $data->{$key} );
     }
     return $payload;
 }

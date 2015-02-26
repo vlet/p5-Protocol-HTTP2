@@ -169,7 +169,8 @@ sub new {
     my $self = {
         con            => undef,
         input          => '',
-        active_streams => 0
+        active_streams => 0,
+        settings       => exists $opts{settings} ? $opts{settings} : {},
     };
 
     if ( exists $opts{on_push} ) {
@@ -276,7 +277,7 @@ sub request {
     else {
         if ( !$con->preface ) {
             $con->enqueue( $con->preface_encode,
-                $con->frame_encode( SETTINGS, 0, 0, {} ) );
+                $con->frame_encode( SETTINGS, 0, 0, $self->{settings} ) );
             $con->preface(1);
         }
 

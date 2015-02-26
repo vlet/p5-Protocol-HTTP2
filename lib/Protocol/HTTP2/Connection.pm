@@ -14,20 +14,20 @@ use Protocol::HTTP2::Trace qw(tracer);
 our @ISA =
   qw(Protocol::HTTP2::Frame Protocol::HTTP2::Stream Protocol::HTTP2::Upgrade);
 
+# Default settings
+my %default_settings = (
+    &SETTINGS_HEADER_TABLE_SIZE      => DEFAULT_HEADER_TABLE_SIZE,
+    &SETTINGS_ENABLE_PUSH            => DEFAULT_ENABLE_PUSH,
+    &SETTINGS_MAX_CONCURRENT_STREAMS => DEFAULT_MAX_CONCURRENT_STREAMS,
+    &SETTINGS_INITIAL_WINDOW_SIZE    => DEFAULT_INITIAL_WINDOW_SIZE,
+    &SETTINGS_MAX_FRAME_SIZE         => DEFAULT_MAX_FRAME_SIZE,
+    &SETTINGS_MAX_HEADER_LIST_SIZE   => DEFAULT_MAX_HEADER_LIST_SIZE,
+);
+
 sub new {
     my ( $class, $type, %opts ) = @_;
     my $self = bless {
         type => $type,
-
-        # Settings of current connection
-        settings => {
-            &SETTINGS_HEADER_TABLE_SIZE      => DEFAULT_HEADER_TABLE_SIZE,
-            &SETTINGS_ENABLE_PUSH            => DEFAULT_ENABLE_PUSH,
-            &SETTINGS_MAX_CONCURRENT_STREAMS => DEFAULT_MAX_CONCURRENT_STREAMS,
-            &SETTINGS_INITIAL_WINDOW_SIZE    => DEFAULT_INITIAL_WINDOW_SIZE,
-            &SETTINGS_MAX_FRAME_SIZE         => DEFAULT_MAX_FRAME_SIZE,
-            &SETTINGS_MAX_HEADER_LIST_SIZE   => DEFAULT_MAX_HEADER_LIST_SIZE,
-        },
 
         streams => {},
 
@@ -42,7 +42,7 @@ sub new {
             # HPACK. Header Table size
             ht_size => 0,
 
-            max_ht_size => DEFAULT_HEADER_TABLE_SIZE,
+            settings => {%default_settings},
 
         },
 
@@ -54,13 +54,13 @@ sub new {
             # HPACK. Header Table size
             ht_size => 0,
 
-            max_ht_size => DEFAULT_HEADER_TABLE_SIZE,
-
             # HPACK. Emitted headers
             emitted_headers => [],
 
             # last frame
             frame => {},
+
+            settings => {%default_settings},
         },
 
         # Current error
@@ -88,6 +88,12 @@ sub new {
 
     for (qw(on_change_state on_new_peer_stream on_error upgrade)) {
         $self->{$_} = $opts{$_} if exists $opts{$_};
+    }
+
+    if ( exists $opts{settings} ) {
+        for ( keys %{ $opts{settings} } ) {
+            $self->{decode_ctx}->{settings}->{$_} = $opts{settings}{$_};
+        }
     }
 
     $self;
@@ -300,7 +306,7 @@ sub state_machine {
 # TODO: move this to some other module
 sub send_headers {
     my ( $self, $stream_id, $headers, $end ) = @_;
-    my $max_size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
+    my $max_size = $self->enc_setting(SETTINGS_MAX_FRAME_SIZE);
 
     my $header_block = headers_encode( $self->encode_context, $headers );
 
@@ -324,7 +330,7 @@ sub send_headers {
 
 sub send_pp_headers {
     my ( $self, $stream_id, $promised_id, $headers ) = @_;
-    my $max_size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
+    my $max_size = $self->enc_setting(SETTINGS_MAX_FRAME_SIZE);
 
     my $header_block = headers_encode( $self->encode_context, $headers );
 
@@ -355,7 +361,7 @@ sub send_data {
     }
     while (1) {
         my $l    = length($data);
-        my $size = $self->setting(SETTINGS_MAX_FRAME_SIZE);
+        my $size = $self->enc_setting(SETTINGS_MAX_FRAME_SIZE);
         for ( $l, $self->fcw_send, $self->stream_fcw_send($stream_id) ) {
             $size = $_ if $size > $_;
         }
@@ -396,11 +402,24 @@ sub error {
 }
 
 sub setting {
-    my $self    = shift;
-    my $setting = shift;
-    return undef unless exists $self->{settings}->{$setting};
-    $self->{settings}->{$setting} = shift if @_;
-    return $self->{settings}->{$setting};
+    require Carp;
+    Carp::confess("setting is deprecated\n");
+}
+
+sub _setting {
+    my ( $ctx, $self, $setting ) = @_;
+    my $s = $self->{$ctx}->{settings};
+    return undef unless exists $s->{$setting};
+    $s->{$setting} = pop if @_ > 3;
+    return $s->{$setting};
+}
+
+sub enc_setting {
+    _setting( 'encode_ctx', @_ );
+}
+
+sub dec_setting {
+    _setting( 'decode_ctx', @_ );
 }
 
 sub accept_settings {
