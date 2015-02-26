@@ -5,7 +5,7 @@ use warnings;
 
 our $VERSION = "0.14";
 
-our $draft = "17";
+our $draft         = "17";
 our $draft_interop = "14";
 
 sub ident_plain {
@@ -121,8 +121,8 @@ L<Protocol::HTTP2::Stream> (stream operations) and L<Protocol::HTTP2::Upgrade>
 
 =head2 L<Protocol::HTTP2::HeaderCompression>
 
-Module implements HPACK (draft 11) - Header Compression for HTTP/2.
-L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-11>
+Module implements HPACK (draft 12) - Header Compression for HTTP/2.
+L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-12>
 
 =head2 L<Protocol::HTTP2::Constants>
 

@@ -9,7 +9,7 @@ use Exporter qw(import);
 our @EXPORT_OK = qw(int_encode int_decode str_encode str_decode headers_decode
   headers_encode);
 
-our $draft = "11";
+our $draft = "12";
 
 sub int_encode {
     my ( $int, $N ) = @_;
