@@ -201,28 +201,26 @@ sub stream_error {
 }
 
 # Flow control windown of stream
-sub stream_fcw_send {
-    shift->_stream_fcw( 'send', @_ );
-}
-
-sub stream_fcw_recv {
-    shift->_stream_fcw( 'recv', @_ );
-}
-
 sub _stream_fcw {
-    my $self      = shift;
     my $dir       = shift;
+    my $self      = shift;
     my $stream_id = shift;
     return undef unless exists $self->{streams}->{$stream_id};
     my $s = $self->{streams}->{$stream_id};
 
     if (@_) {
-        $s->{ 'fcw_' . $dir } += shift;
-        tracer->debug( "Stream $stream_id fcw_$dir now is "
-              . $s->{ 'fcw_' . $dir }
-              . "\n" );
+        $s->{$dir} += shift;
+        tracer->debug( "Stream $stream_id $dir now is " . $s->{$dir} . "\n" );
     }
-    $s->{ 'fcw_' . $dir };
+    $s->{$dir};
+}
+
+sub stream_fcw_send {
+    _stream_fcw( 'fcw_send', @_ );
+}
+
+sub stream_fcw_recv {
+    _stream_fcw( 'fcw_recv', @_ );
 }
 
 sub stream_fcw_update {
