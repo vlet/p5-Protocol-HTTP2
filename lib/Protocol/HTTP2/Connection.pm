@@ -428,23 +428,23 @@ sub accept_settings {
 }
 
 # Flow control windown of connection
+sub _fcw {
+    my $dir  = shift;
+    my $self = shift;
+
+    if (@_) {
+        $self->{$dir} += shift;
+        tracer->debug( "$dir now is " . $self->{$dir} . "\n" );
+    }
+    $self->{$dir};
+}
+
 sub fcw_send {
-    shift->_fcw( 'send', @_ );
+    _fcw( 'fcw_send', @_ );
 }
 
 sub fcw_recv {
-    shift->_fcw( 'recv', @_ );
-}
-
-sub _fcw {
-    my $self = shift;
-    my $dir  = shift;
-
-    if (@_) {
-        $self->{ 'fcw_' . $dir } += shift;
-        tracer->debug( "fcw_$dir now is " . $self->{ 'fcw_' . $dir } . "\n" );
-    }
-    $self->{ 'fcw_' . $dir };
+    _fcw( 'fcw_recv', @_ );
 }
 
 sub fcw_update {
