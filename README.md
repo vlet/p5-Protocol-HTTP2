@@ -30,9 +30,9 @@ plain or tls socket (see examples).
 
 # STATUS
 
-Current status - alpha. Structures, module names and methods may change vastly.
+Current status - beta. Structures, module names and methods seems like stable.
 I've started this project to understand internals of HTTP/2 and may be it will
-never become production or even finished.
+never become production, but at least it works.
 
     | Spec                    |      status     |
     | ----------------------- | --------------- |
@@ -88,13 +88,19 @@ Module implements HPACK (draft 12) - Header Compression for HTTP/2.
 
 ## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
 
-Module contain all defined in HTTP/2 protocol constants and default values
+Module contains all defined in HTTP/2 protocol constants and default values
 
 ## [Protocol::HTTP2::Trace](https://metacpan.org/pod/Protocol::HTTP2::Trace)
 
-Module for debugging. (Ab)used Log::Dispatch internally, may be removed soon.
+Module for debugging. You can setup HTTP2\_DEBUG environment variable to change
+verbosity of the module (output to STDOUT). Default level is error.
+
+    $ export HTTP2_DEBUG=debug
+    $ perl ./http2_program
 
 # SEE ALSO
+
+[https://github.com/vlet/p5-Protocol-HTTP2/wiki](https://github.com/vlet/p5-Protocol-HTTP2/wiki) - Protocol::HTTP2 wiki
 
 [http://http2.github.io/](http://http2.github.io/) - official HTTP/2 specification site
 
