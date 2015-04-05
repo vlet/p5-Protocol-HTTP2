@@ -249,6 +249,52 @@ You can chaining request one by one:
 
     $client->request( 1-st request )->request( 2-nd request );
 
+Available callbacks:
+
+=over
+
+=item on_done => sub {...}
+
+Invoked when full servers response is available
+
+    on_done => sub {
+        my ( $headers, $data ) = @_;
+        ...
+    },
+
+=item on_headers => sub {...}
+
+Invoked as soon as headers have been successfully received from the server
+
+    on_headers => sub {
+        my $headers = shift;
+        ...
+
+        # if we want reject any data
+        # return undef
+
+        # continue
+        return 1
+    }
+
+=item on_data => sub {...}
+
+If specified all data will be passed to this callback instead if on_done.
+on_done will receive empty string.
+
+    on_data => sub {
+        my ( $partial_data, $headers ) = @_;
+        ...
+
+        # if we want cancel download
+        # return undef
+
+        # continue downloading
+        return 1
+    }
+
+=back
+
 =cut
 
 my @must = (qw(:authority :method :path :scheme));
@@ -302,6 +348,26 @@ sub request {
             $self->active_streams(-1);
         }
     ) if exists $h{on_done};
+
+    $con->stream_frame_cb(
+        $stream_id,
+        HEADERS,
+        sub {
+            my $res = $h{on_headers}->( $_[0] );
+            return if $res;
+            $con->stream_error( $stream_id, REFUSED_STREAM );
+        }
+    ) if exists $h{on_headers};
+
+    $con->stream_frame_cb(
+        $stream_id,
+        DATA,
+        sub {
+            my $res = $h{on_data}->( $_[0], $con->stream_headers($stream_id), );
+            return if $res;
+            $con->stream_error( $stream_id, REFUSED_STREAM );
+        }
+    ) if exists $h{on_data};
 
     return $self;
 }
