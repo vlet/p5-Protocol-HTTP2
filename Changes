@@ -2,6 +2,12 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+0.16 2015-04-05T20:41:49Z
+    - update status (beta)
+    - add wiki link
+    - implemented server streaming
+    - implemented client downloading, request cancelling
+
 0.15 2015-02-26T20:39:20Z
     - Splited settings for decoder/encoder
     - Allow to setup custom settings in Server/Client constructor
