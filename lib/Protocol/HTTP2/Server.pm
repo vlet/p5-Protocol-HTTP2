@@ -247,9 +247,119 @@ sub response {
         ],
         exists $h{data} ? 0 : 1
     );
-    $con->send_data( $h{stream_id}, $h{data} ) if exists $h{data};
-
+    $con->send_data( $h{stream_id}, $h{data}, 1 ) if exists $h{data};
     return $self;
+}
+
+=head3 response_stream
+
+If body of response is not yet ready or server will stream data
+
+    # P::H::Server::Stream object
+    my $server_stream;
+    $server_stream = $server->response_stream(
+
+        # HTTP/2 status
+        ':status' => 200,
+
+        # Stream ID
+        stream_id => $stream_id,
+
+        # HTTP/1.1 headers
+        headers   => [
+            'server'         => 'perl-Protocol-HTTP2/0.01',
+        ],
+
+        # Callback if client abort this stream
+        on_cancel => sub {
+            ...
+        }
+    );
+
+    # Send partial data
+    $server_stream->send($chunk_of_data);
+    $server_stream->send($chunk_of_data);
+
+    ## 3 ways to finish stream:
+    #
+    # The best: send last chunk and close stream in one action
+    $server_stream->last($chunk_of_data);
+
+    # Close the stream (will send empty frame)
+    $server_stream->close();
+
+    # Destroy object (will send empty frame)
+    undef $server_stream
+
+=cut
+
+{
+
+    package Protocol::HTTP2::Server::Stream;
+    use Protocol::HTTP2::Constants qw(:states);
+
+    sub new {
+        my ( $class, %opts ) = @_;
+        my $self = bless {%opts}, $class;
+
+        $self->{con}->stream_cb(
+            $self->{stream_id},
+            CLOSED,
+            sub {
+                return if $self->{done};
+                $self->{done} = 1;
+                $self->{on_cancel}->();
+            }
+        ) if $self->{on_cancel};
+
+        $self;
+    }
+
+    sub send {
+        my $self = shift;
+        $self->{con}->send_data( $self->{stream_id}, shift );
+    }
+
+    sub last {
+        my $self = shift;
+        $self->{done} = 1;
+        $self->{con}->send_data( $self->{stream_id}, shift, 1 );
+    }
+
+    sub close {
+        my $self = shift;
+        $self->{done} = 1;
+        $self->{con}->send_data( $self->{stream_id}, undef, 1 );
+    }
+
+    sub DESTROY {
+        my $self = shift;
+        $self->{con}->send_data( $self->{stream_id}, undef, 1 )
+          unless $self->{done} || !$self->{con};
+    }
+}
+
+sub response_stream {
+    my ( $self, %h ) = @_;
+    my @miss = grep { !exists $h{$_} } @must;
+    croak "Missing headers in response_stream: @miss" if @miss;
+
+    my $con = $self->{con};
+
+    $con->send_headers(
+        $h{stream_id},
+        [
+            ( map { $_ => $h{$_} } @must ),
+            exists $h{headers} ? @{ $h{headers} } : ()
+        ],
+        0
+    );
+
+    return Protocol::HTTP2::Server::Stream->new(
+        con       => $con,
+        stream_id => $h{stream_id},
+        on_cancel => $h{on_cancel},
+    );
 }
 
 =head3 push
