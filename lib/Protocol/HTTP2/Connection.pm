@@ -353,19 +353,18 @@ sub send_pp_headers {
 }
 
 sub send_data {
-    my ( $self, $stream_id, $data ) = @_;
-    my $blocked_ref = $self->stream_blocked_data($stream_id);
-    if ( defined $$blocked_ref ) {
-        $data         = $$blocked_ref . $data;
-        $$blocked_ref = undef;
-    }
+    my ( $self, $stream_id, $chunk, $end ) = @_;
+    my $data = $self->stream_blocked_data($stream_id);
+    $data .= defined $chunk ? $chunk : '';
+    $self->stream_end( $stream_id, $end ) if defined $end;
+    $end = $self->stream_end($stream_id);
+
     while (1) {
         my $l    = length($data);
         my $size = $self->enc_setting(SETTINGS_MAX_FRAME_SIZE);
         for ( $l, $self->fcw_send, $self->stream_fcw_send($stream_id) ) {
             $size = $_ if $size > $_;
         }
-        my $flags = $l == $size ? END_STREAM : 0;
 
         # Flow control
         if ( $l != 0 && $size == 0 ) {
@@ -376,11 +375,11 @@ sub send_data {
         $self->stream_fcw_send( $stream_id, -$size );
 
         $self->enqueue(
-            $self->frame_encode( DATA, $flags,
+            $self->frame_encode( DATA, $end && $l == $size ? END_STREAM : 0,
                 $stream_id, \substr( $data, 0, $size, '' )
             )
         );
-        last if $flags & END_STREAM;
+        last if $l == $size;
     }
 }
 

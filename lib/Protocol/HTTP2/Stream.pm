@@ -123,13 +123,32 @@ sub stream_cb {
     push @{ $self->{streams}->{$stream_id}->{cb}->{$state} }, $cb;
 }
 
+sub stream_frame_cb {
+    my ( $self, $stream_id, $frame, $cb ) = @_;
+
+    return undef unless exists $self->{streams}->{$stream_id};
+
+    push @{ $self->{streams}->{$stream_id}->{frame_cb}->{$frame} }, $cb;
+}
+
 sub stream_data {
     my $self      = shift;
     my $stream_id = shift;
     return undef unless exists $self->{streams}->{$stream_id};
     my $s = $self->{streams}->{$stream_id};
 
-    $s->{data} .= shift if @_;
+    if (@_) {
+
+        # Exec callbacks for data
+        if ( exists $s->{frame_cb} && exists $s->{frame_cb}->{&DATA} ) {
+            for my $cb ( @{ $s->{frame_cb}->{&DATA} } ) {
+                $cb->( $_[0] );
+            }
+        }
+        else {
+            $s->{data} .= shift;
+        }
+    }
 
     $s->{data};
 }
@@ -187,6 +206,13 @@ sub stream_headers_done {
         $s->{headers} = $eh;
     }
 
+    # Exec callbacks for headers
+    if ( exists $s->{frame_cb} && exists $s->{frame_cb}->{&HEADERS} ) {
+        for my $cb ( @{ $s->{frame_cb}->{&HEADERS} } ) {
+            $cb->($eh);
+        }
+    }
+
     # Clear emitted headers
     $self->decode_context->{emitted_headers} = [];
 
@@ -241,10 +267,8 @@ sub stream_blocked_data {
     my $stream_id = shift;
     my $s         = $self->{streams}->{$stream_id} or return undef;
 
-    if (@_) {
-        $s->{blocked_data} .= shift;
-    }
-    \$s->{blocked_data};
+    $s->{blocked_data} = shift if @_;
+    $s->{blocked_data};
 }
 
 sub stream_send_blocked {
@@ -254,7 +278,7 @@ sub stream_send_blocked {
     if ( length( $s->{blocked_data} )
         && $self->stream_fcw_send($stream_id) != 0 )
     {
-        $self->send_data( $stream_id, '' );
+        $self->send_data($stream_id);
     }
 }
 
@@ -265,6 +289,15 @@ sub stream_weight {
 
     $s->{weight} = $weight if defined $weight;
     $s->{weight};
+}
+
+sub stream_end {
+    my ( $self, $stream_id, $end_flag ) = @_;
+    return undef unless exists $self->{streams}->{$stream_id};
+    my $s = $self->{streams}->{$stream_id};
+
+    $s->{end} = $end_flag if defined $end_flag;
+    $s->{end};
 }
 
 sub stream_reprio {
