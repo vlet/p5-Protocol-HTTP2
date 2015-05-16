@@ -15,9 +15,9 @@ subtest 'decode_upgrade_response' => sub {
       "\x00HTTP/1.1 101 Switching Protocols",
       "Connection: Upgrade",
       "SomeHeader: bla bla",
-      "Upgrade: h2c-17", "",
+      "Upgrade: h2c", "",
       "here is some binary data";
-    is $con->decode_upgrade_response( \$buf, 1 ), 95, "correct pos";
+    is $con->decode_upgrade_response( \$buf, 1 ), 92, "correct pos";
 
     $buf =~ s/101/200/;
     is $con->decode_upgrade_response( \$buf, 1 ), undef, "no switch";
@@ -40,7 +40,7 @@ subtest 'decode_upgrade_request' => sub {
       "\x00GET /default.htm HTTP/1.1",
       "Host: server.example.com",
       "Connection: Upgrade, HTTP2-Settings",
-      "Upgrade: h2c-17",
+      "Upgrade: h2c",
       "HTTP2-Settings: AAAABAAAAAAA",
       "User-Agent: perl-Protocol-HTTP2/0.10",
       "", "";

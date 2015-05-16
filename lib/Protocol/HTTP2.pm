@@ -3,25 +3,14 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "0.16";
-
-our $draft         = "17";
-our $draft_interop = "14";
+our $VERSION = "1.00";
 
 sub ident_plain {
-    'h2c-' . $draft;
+    'h2c'
 }
 
 sub ident_tls {
-    'h2-' . $draft;
-}
-
-sub ident_interop_plain {
-    'h2c-' . $draft_interop;
-}
-
-sub ident_interop_tls {
-    'h2-' . $draft_interop;
+    'h2'
 }
 
 1;
@@ -31,30 +20,21 @@ __END__
 
 =head1 NAME
 
-Protocol::HTTP2 - HTTP/2 protocol (draft 17) implementation
+Protocol::HTTP2 - HTTP/2 protocol implementation (RFC 7540)
 
 =head1 SYNOPSIS
 
     use Protocol::HTTP2;
 
-    # get current draft version
-    print $Protocol::HTTP2::draft;          # 17
-
-    # get current interoperate draft version (compatible with current draft
-    # protocol version for interoperability with over implementations)
-    print $Protocol::HTTP2::draft_interop;  # 14
-
     # get protocol identification string for secure connections
-    print Protocol::HTTP2::ident_tls;           # h2-17
-    print Protocol::HTTP2::ident_interop_tls;   # h2-14
+    print Protocol::HTTP2::ident_tls;           # h2
 
     # get protocol identification string for non-secure connections
-    print Protocol::HTTP2::ident_plain;         # h2c-17
-    print Protocol::HTTP2::ident_interop_plain; # h2c-14
+    print Protocol::HTTP2::ident_plain;         # h2c
 
 =head1 DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol (draft 17) implementation with stateful
+Protocol::HTTP2 is HTTP/2 protocol implementation (RFC 7540) with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -121,8 +101,8 @@ L<Protocol::HTTP2::Stream> (stream operations) and L<Protocol::HTTP2::Upgrade>
 
 =head2 L<Protocol::HTTP2::HeaderCompression>
 
-Module implements HPACK (draft 12) - Header Compression for HTTP/2.
-L<http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-12>
+Module implements HPACK - Header Compression for HTTP/2 (RFC 7541).
+L<https://tools.ietf.org/html/rfc7541>
 
 =head2 L<Protocol::HTTP2::Constants>
 
