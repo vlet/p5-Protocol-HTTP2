@@ -1,10 +1,10 @@
 {
-   "abstract" : "HTTP/2 protocol (draft 17) implementation",
+   "abstract" : "HTTP/2 protocol implementation (RFC 7540)",
    "author" : [
       "Vladimir Lettiev <thecrux@gmail.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v2.3.0, CPAN::Meta::Converter version 2.133380",
+   "generated_by" : "Minilla/v2.3.0, CPAN::Meta::Converter version 2.142060",
    "license" : [
       "perl_5"
    ],
@@ -70,5 +70,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "0.16"
+   "version" : "1.00"
 }

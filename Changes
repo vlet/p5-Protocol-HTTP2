@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.00 2015-05-16T18:51:09Z
+    - HTTP/2 is RFC 7540
+    - HPACK  is RFC 7541
+    - updated protocol id string ("h2", "h2c"), dropped old interop id strings
+
 0.16 2015-04-05T20:41:49Z
     - update status (beta)
     - add wiki link
