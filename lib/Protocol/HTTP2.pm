@@ -6,11 +6,11 @@ use warnings;
 our $VERSION = "1.00";
 
 sub ident_plain {
-    'h2c'
+    'h2c';
 }
 
 sub ident_tls {
-    'h2'
+    'h2';
 }
 
 1;
