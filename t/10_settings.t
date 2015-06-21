@@ -9,11 +9,9 @@ use Protocol::HTTP2::Server;
 
 subtest 'client settings' => sub {
 
-    my $c = Protocol::HTTP2::Client->new(
-        settings => {
-            &SETTINGS_HEADER_TABLE_SIZE => 100
-        }
-    );
+    my $c =
+      Protocol::HTTP2::Client->new(
+        settings => { &SETTINGS_HEADER_TABLE_SIZE => 100 } );
     $c->request(
         ':scheme'    => 'http',
         ':authority' => 'localhost:8000',

@@ -198,9 +198,7 @@ EOF
       "emitted headers";
     $ctx->{emitted_headers} = [];
     is_deeply $ctx->{header_table}, [
-        [
-            'cache-control' => 'no-cache'
-        ],
+        [ 'cache-control' => 'no-cache' ],
 
         [ ':authority' => 'www.example.com' ]
       ],
@@ -223,9 +221,7 @@ EOF
       ],
       "emitted headers";
     is_deeply $ctx->{header_table}, [
-        [
-            'custom-key' => 'custom-value'
-        ],
+        [ 'custom-key' => 'custom-value' ],
         [
             'cache-control' => 'no-cache'
         ],

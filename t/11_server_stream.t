@@ -82,9 +82,7 @@ subtest 'client cancel' => sub {
                 stream_id => $stream_id,
 
                 # HTTP/1.1 Headers
-                headers => [
-                    'server' => 'perl-Protocol-HTTP2/0.16',
-                ],
+                headers   => [ 'server' => 'perl-Protocol-HTTP2/0.16', ],
                 on_cancel => sub {
                     $cancel = 1;
                 }
@@ -105,9 +103,7 @@ subtest 'client cancel' => sub {
         ':method'    => 'GET',
 
         # HTTP/1.1 headers
-        headers => [
-            'user-agent' => 'perl-Protocol-HTTP2/0.16',
-        ],
+        headers => [ 'user-agent' => 'perl-Protocol-HTTP2/0.16', ],
 
         on_headers => sub {
             is_deeply $_[0],
