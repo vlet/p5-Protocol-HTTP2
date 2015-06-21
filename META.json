@@ -4,7 +4,7 @@
       "Vladimir Lettiev <thecrux@gmail.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v2.3.0, CPAN::Meta::Converter version 2.142060",
+   "generated_by" : "Minilla/v2.4.1, CPAN::Meta::Converter version 2.150001",
    "license" : [
       "perl_5"
    ],
@@ -46,6 +46,7 @@
       "runtime" : {
          "requires" : {
             "MIME::Base64" : "3.11",
+            "Scalar::Util" : "0",
             "perl" : "5.008005"
          }
       },
@@ -53,6 +54,7 @@
          "requires" : {
             "AnyEvent" : "0",
             "Net::SSLeay" : "> 1.45",
+            "Test::LeakTrace" : "0",
             "Test::More" : "0.98",
             "Test::TCP" : "0"
          }
@@ -70,5 +72,5 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "1.00"
+   "version" : "1.01"
 }

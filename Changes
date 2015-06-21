@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.01 2015-06-21T14:17:54Z
+    - fixed leaks in Server/Client code
+    - new test to check leaks
+    - updated examples with tls
+
 1.00 2015-05-16T18:51:09Z
     - HTTP/2 is RFC 7540
     - HPACK  is RFC 7541
