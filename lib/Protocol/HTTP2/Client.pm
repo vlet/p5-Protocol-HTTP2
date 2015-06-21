@@ -6,6 +6,7 @@ use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
   :errors);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
+use Scalar::Util ();
 
 =encoding utf-8
 
@@ -174,6 +175,8 @@ sub new {
     };
 
     if ( exists $opts{on_push} ) {
+        Scalar::Util::weaken( my $self = $self );
+
         my $cb = delete $opts{on_push};
         $opts{on_new_peer_stream} = sub {
             my $stream_id = shift;
@@ -336,6 +339,9 @@ sub request {
             1
         );
     }
+
+    Scalar::Util::weaken $self;
+    Scalar::Util::weaken $con;
 
     $con->stream_cb(
         $stream_id,

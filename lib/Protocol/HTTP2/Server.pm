@@ -6,6 +6,7 @@ use Protocol::HTTP2::Constants qw(:frame_types :flags :states :endpoints
   :settings :limits const_name);
 use Protocol::HTTP2::Trace qw(tracer);
 use Carp;
+use Scalar::Util ();
 
 =encoding utf-8
 
@@ -178,6 +179,8 @@ sub new {
         },
     };
     if ( exists $opts{on_request} ) {
+        Scalar::Util::weaken( my $self = $self );
+
         $self->{cb} = delete $opts{on_request};
         $opts{on_new_peer_stream} = sub {
             my $stream_id = shift;
@@ -297,20 +300,24 @@ If body of response is not yet ready or server will stream data
 
     package Protocol::HTTP2::Server::Stream;
     use Protocol::HTTP2::Constants qw(:states);
+    use Scalar::Util ();
 
     sub new {
         my ( $class, %opts ) = @_;
         my $self = bless {%opts}, $class;
 
-        $self->{con}->stream_cb(
-            $self->{stream_id},
-            CLOSED,
-            sub {
-                return if $self->{done};
-                $self->{done} = 1;
-                $self->{on_cancel}->();
-            }
-        ) if $self->{on_cancel};
+        if ( $self->{on_cancel} ) {
+            Scalar::Util::weaken( my $self = $self );
+            $self->{con}->stream_cb(
+                $self->{stream_id},
+                CLOSED,
+                sub {
+                    return if $self->{done};
+                    $self->{done} = 1;
+                    $self->{on_cancel}->();
+                }
+            );
+        }
 
         $self;
     }
