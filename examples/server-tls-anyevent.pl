@@ -23,18 +23,34 @@ tcp_server $host, $port, sub {
 
     my $tls;
     eval {
-        my $ctx = Net::SSLeay::CTX_tlsv1_new() or die $!;
-        Net::SSLeay::CTX_set_options( $ctx, &Net::SSLeay::OP_ALL );
-        Net::SSLeay::set_cert_and_key( $ctx, "test.crt", "test.key" );
+        $tls = AnyEvent::TLS->new(
+            method    => "TLSv1_2",
+            cert_file => "test.crt",
+            key_file  => "test.key",
+        );
 
-        # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
-        Net::SSLeay::CTX_set_next_protos_advertised_cb( $ctx,
-            [Protocol::HTTP2::ident_tls] );
+        # ECDH curve ( Net-SSLeay >= 1.56, openssl >= 1.0.0 )
+        if ( exists &Net::SSLeay::CTX_set_tmp_ecdh ) {
+            my $curve = Net::SSLeay::OBJ_txt2nid('prime256v1');
+            my $ecdh  = Net::SSLeay::EC_KEY_new_by_curve_name($curve);
+            Net::SSLeay::CTX_set_tmp_ecdh( $tls->ctx, $ecdh );
+            Net::SSLeay::EC_KEY_free($ecdh);
+        }
 
         # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
-        #Net::SSLeay::CTX_set_alpn_select_cb( $ctx,
-        #    [ Protocol::HTTP2::ident_tls ] );
-        $tls = AnyEvent::TLS->new_from_ssleay($ctx);
+        if ( exists &Net::SSLeay::CTX_set_alpn_select_cb ) {
+            Net::SSLeay::CTX_set_alpn_select_cb( $tls->ctx,
+                [Protocol::HTTP2::ident_tls] );
+        }
+
+        # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
+        elsif ( exists &Net::SSLeay::CTX_set_next_protos_advertised_cb ) {
+            Net::SSLeay::CTX_set_next_protos_advertised_cb( $tls->ctx,
+                [Protocol::HTTP2::ident_tls] );
+        }
+        else {
+            die "ALPN and NPN is not supported\n";
+        }
     };
 
     if ($@) {

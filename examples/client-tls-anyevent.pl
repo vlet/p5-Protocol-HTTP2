@@ -70,17 +70,22 @@ tcp_connect $host, $port, sub {
 
     my $tls;
     eval {
-        my $ctx = Net::SSLeay::CTX_tlsv1_new() or die $!;
-        Net::SSLeay::CTX_set_options( $ctx, &Net::SSLeay::OP_ALL );
-
-        # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
-        Net::SSLeay::CTX_set_next_proto_select_cb( $ctx,
-            [Protocol::HTTP2::ident_tls] );
+        $tls = AnyEvent::TLS->new( method => "TLSv1_2", );
 
         # ALPN (Net-SSLeay > 1.55, openssl >= 1.0.2)
-        #Net::SSLeay::CTX_set_alpn_protos( $ctx,
-        #    [ Protocol::HTTP2::ident_tls ] );
-        $tls = AnyEvent::TLS->new_from_ssleay($ctx);
+        if ( exists &Net::SSLeay::CTX_set_alpn_protos ) {
+            Net::SSLeay::CTX_set_alpn_protos( $tls->ctx,
+                [Protocol::HTTP2::ident_tls] );
+        }
+
+        # NPN  (Net-SSLeay > 1.45, openssl >= 1.0.1)
+        elsif ( exists &Net::SSLeay::CTX_set_next_proto_select_cb ) {
+            Net::SSLeay::CTX_set_next_proto_select_cb( $tls->ctx,
+                [Protocol::HTTP2::ident_tls] );
+        }
+        else {
+            die "ALPN and NPN is not supported\n";
+        }
     };
     if ($@) {
         print "Some problem with SSL CTX: $@\n";
