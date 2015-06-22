@@ -2,6 +2,9 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.02 2015-06-22T17:27:01Z
+    - fixed leaks test
+
 1.01 2015-06-21T14:17:54Z
     - fixed leaks in Server/Client code
     - new test to check leaks
