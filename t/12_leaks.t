@@ -129,6 +129,7 @@ no_leaks_ok {
     fake_connect( $server, $client );
     undef $client;
     undef $server;
+    undef $s_stream;
 };
 
 done_testing;
