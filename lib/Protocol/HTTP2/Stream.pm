@@ -2,7 +2,7 @@ package Protocol::HTTP2::Stream;
 use strict;
 use warnings;
 use Protocol::HTTP2::Constants qw(:states :endpoints :settings :frame_types
-  :limits);
+  :limits :errors);
 use Protocol::HTTP2::HeaderCompression qw( headers_decode );
 use Protocol::HTTP2::Trace qw(tracer);
 
@@ -18,7 +18,7 @@ sub new_stream {
         'state'      => IDLE,
         'weight'     => DEFAULT_WEIGHT,
         'stream_dep' => 0,
-        'fcw_recv'   => $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+        'fcw_recv'   => $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE),
         'fcw_send'   => $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE),
     };
     return $self->{last_stream};
@@ -31,15 +31,26 @@ sub new_peer_stream {
         || ( $stream_id % 2 ) == ( $self->{type} == CLIENT ) ? 1 : 0
         || $self->goaway )
     {
+        tracer->error("Peer send invalid stream id: $stream_id\n");
+        $self->error(PROTOCOL_ERROR);
         return undef;
     }
     $self->{last_peer_stream} = $stream_id;
+    if ( $self->dec_setting(SETTINGS_MAX_CONCURRENT_STREAMS) <=
+        $self->{active_peer_streams} )
+    {
+        tracer->error("SETTINGS_MAX_CONCURRENT_STREAMS exceeded\n");
+        $self->stream_error( $stream_id, REFUSED_STREAM );
+        return undef;
+    }
+    $self->{active_peer_streams}++;
+    tracer->debug("Active streams: $self->{active_peer_streams}");
     $self->{streams}->{$stream_id} = {
         'state'      => IDLE,
         'weight'     => DEFAULT_WEIGHT,
         'stream_dep' => 0,
         'fcw_recv'   => $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE),
-        'fcw_send'   => $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE),
+        'fcw_send'   => $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE),
     };
     $self->{on_new_peer_stream}->($stream_id)
       if exists $self->{on_new_peer_stream};
@@ -83,6 +94,11 @@ sub stream_state {
 
             # Cleanup
             if ( $new_state == CLOSED ) {
+                $self->{active_peer_streams}--
+                  if $self->{active_peer_streams}
+                  && ( ( $stream_id % 2 ) ^ ( $self->{type} == CLIENT ) );
+                tracer->info(
+                    "Active streams: $self->{active_peer_streams} $stream_id");
                 for my $key ( keys %$s ) {
                     next if grep { $key eq $_ } (
                         qw(state weight stream_dep
@@ -102,7 +118,11 @@ sub stream_pending_state {
     my $stream_id = shift;
     return undef unless exists $self->{streams}->{$stream_id};
     my $s = $self->{streams}->{$stream_id};
-    $s->{pending_state} = shift if @_;
+    if (@_) {
+        $s->{pending_state} = shift;
+        $self->{pending_stream} =
+          defined $s->{pending_state} ? $stream_id : undef;
+    }
     $s->{pending_state};
 }
 
@@ -180,6 +200,15 @@ sub stream_pp_headers {
     $self->{streams}->{$stream_id}->{pp_headers};
 }
 
+# Explicit content-length in headers
+sub stream_length {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{length} = shift if @_;
+    $self->{streams}->{$stream_id}->{length};
+}
+
 sub stream_headers_done {
     my $self      = shift;
     my $stream_id = shift;
@@ -188,7 +217,7 @@ sub stream_headers_done {
 
     my $res =
       headers_decode( $self, \$s->{header_block}, 0,
-        length $s->{header_block} );
+        length $s->{header_block}, $stream_id );
 
     tracer->debug("Headers done for stream $stream_id\n");
 
@@ -198,6 +227,10 @@ sub stream_headers_done {
     $s->{header_block} = '';
 
     my $eh = $self->decode_context->{emitted_headers};
+    my $is_response = $self->{type} == CLIENT && !$s->{promised_sid};
+
+    return undef
+      unless $self->validate_headers( $eh, $stream_id, $is_response );
 
     if ( $s->{promised_sid} ) {
         $self->{streams}->{ $s->{promised_sid} }->{pp_headers} = $eh;
@@ -219,11 +252,70 @@ sub stream_headers_done {
     return 1;
 }
 
+sub validate_headers {
+    my ( $self, $headers, $stream_id, $is_response ) = @_;
+    my $pseudo_flag = 1;
+    my %pseudo_hash = ();
+    my @h           = $is_response ? (qw(:status)) : (
+        qw(:method :scheme :authority
+          :path)
+    );
+    for my $i ( 0 .. @$headers / 2 - 1 ) {
+        my ( $h, $v ) = ( $headers->[ $i * 2 ], $headers->[ $i * 2 + 1 ] );
+        if ( $h =~ /^\:/ ) {
+            if ( !$pseudo_flag ) {
+                tracer->debug(
+                    "pseudo-header <$h> appears after a regular header");
+                $self->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
+            elsif ( !grep { $_ eq $h } @h ) {
+                tracer->debug("invalid pseudo-header <$h>");
+                $self->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
+            elsif ( exists $pseudo_hash{$h} ) {
+                tracer->debug("invalid pseudo-header <$h>");
+                $self->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
+
+            $pseudo_hash{$h} = $v;
+            next;
+        }
+
+        $pseudo_flag = 0 if $pseudo_flag;
+
+        if ( $h eq 'connection' ) {
+            tracer->debug("connection header are not valid in http/2");
+            $self->stream_error( $stream_id, PROTOCOL_ERROR );
+            return undef;
+        }
+        elsif ( $h eq 'te' && $v ne 'trailers' ) {
+            tracer->debug("TE header can contain only value 'trailers'");
+            $self->stream_error( $stream_id, PROTOCOL_ERROR );
+            return undef;
+        }
+        elsif ( $h eq 'content-length' ) {
+            $self->stream_length( $stream_id, $v );
+        }
+    }
+
+    for my $h (@h) {
+        next if exists $pseudo_hash{$h};
+
+        tracer->debug("missed mandatory pseudo-header $h");
+        $self->stream_error( $stream_id, PROTOCOL_ERROR );
+        return undef;
+    }
+
+    1;
+}
+
 # RST_STREAM for stream errors
 sub stream_error {
     my ( $self, $stream_id, $error ) = @_;
-    $self->enqueue(
-        $self->frame_encode( RST_STREAM, 0, $stream_id, $error, '' ) );
+    $self->enqueue( RST_STREAM, 0, $stream_id, $error );
 }
 
 # Flow control windown of stream
@@ -255,11 +347,7 @@ sub stream_fcw_update {
     # TODO: check size of data of stream  in memory
     tracer->debug("update fcw recv of stream $stream_id\n");
     $self->stream_fcw_recv( $stream_id, DEFAULT_INITIAL_WINDOW_SIZE );
-    $self->enqueue(
-        $self->frame_encode( WINDOW_UPDATE, 0, $stream_id,
-            DEFAULT_INITIAL_WINDOW_SIZE
-        )
-    );
+    $self->enqueue( WINDOW_UPDATE, 0, $stream_id, DEFAULT_INITIAL_WINDOW_SIZE );
 }
 
 sub stream_blocked_data {
