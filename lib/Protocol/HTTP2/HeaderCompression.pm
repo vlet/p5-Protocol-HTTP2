@@ -133,7 +133,7 @@ sub add_to_ht {
 }
 
 sub headers_decode {
-    my ( $con, $buf_ref, $buf_offset, $length ) = @_;
+    my ( $con, $buf_ref, $buf_offset, $length, $stream_id ) = @_;
 
     my $context = $con->decode_context;
 
@@ -191,6 +191,18 @@ sub headers_decode {
             my $key_size =
               str_decode( $buf_ref, $buf_offset + $offset + 1, \my $key );
             return $offset unless $key_size;
+
+            if ( $key_size == 1 ) {
+                tracer->error("Empty literal header name");
+                $con->error(COMPRESSION_ERROR);
+                return undef;
+            }
+
+            if ( $key =~ /[^a-z0-9\!\#\$\%\&\'\*\+\-\^\_\`]/ ) {
+                tracer->error("Illegal characters in header name");
+                $con->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
 
             my $value_size =
               str_decode( $buf_ref, $buf_offset + $offset + 1 + $key_size,
