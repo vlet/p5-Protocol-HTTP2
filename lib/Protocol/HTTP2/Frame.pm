@@ -85,23 +85,32 @@ sub frame_decode {
     return 0
       if length($$buf_ref) - $buf_offset - FRAME_HEADER_SIZE - $length < 0;
 
-    # Unknown type of frame
-    if ( !exists $frame_class{$type} ) {
-        tracer->debug("Unknown type of frame: $type\n");
-
-        # ignore it
-        return FRAME_HEADER_SIZE + $length;
-    }
-
     tracer->debug(
         sprintf "TYPE = %s(%i), FLAGS = %08b, STREAM_ID = %i, "
           . "LENGTH = %i\n",
-        const_name( "frame_types", $type ),
+        exists $frame_class{$type}
+        ? const_name( "frame_types", $type )
+        : "UNKNOWN",
         $type,
         $flags,
         $stream_id,
         $length
     );
+
+    my $pending_stream_id = $con->pending_stream;
+    if ( $pending_stream_id
+        && ( $type != CONTINUATION || $pending_stream_id != $stream_id ) )
+    {
+        tracer->debug("Expected CONTINUATION for stream $pending_stream_id");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
+
+    # Unknown type of frame
+    if ( !exists $frame_class{$type} ) {
+        tracer->info("ignore unknown frame type $type");
+        return FRAME_HEADER_SIZE + $length;
+    }
 
     $con->decode_context->{frame} = {
         type   => $type,
@@ -110,14 +119,11 @@ sub frame_decode {
         stream => $stream_id,
     };
 
-    # Create new stream structure
-    # Error when stream_id is invalid
+    # Try to create new stream structure
     if (   $stream_id
         && !$con->stream($stream_id)
         && !$con->new_peer_stream($stream_id) )
     {
-        tracer->debug("Peer send invalid stream id: $stream_id\n");
-        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
@@ -126,8 +132,7 @@ sub frame_decode {
       ->( $con, $buf_ref, $buf_offset + FRAME_HEADER_SIZE, $length );
 
     # Arrived frame may change state of stream
-    $con->state_machine( 'recv', $type, $flags, $stream_id )
-      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
+    $con->state_machine( 'recv', $type, $flags, $stream_id );
 
     return FRAME_HEADER_SIZE + $length;
 }
