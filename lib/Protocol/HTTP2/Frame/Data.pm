@@ -51,6 +51,18 @@ sub decode {
     # Update stream data container
     $con->stream_data( $frame_ref->{stream}, $data );
 
+    # Check length of data matched content-length in header
+    if ( $frame_ref->{flags} & END_STREAM ) {
+        my $slen = $con->stream_length( $frame_ref->{stream} );
+        if ( defined $slen
+            && $slen != length $con->stream_data( $frame_ref->{stream} ) )
+        {
+            tracer->error(
+                "content-length header don't match data frames size\n");
+            $con->stream_error( $frame_ref->{stream}, PROTOCOL_ERROR );
+        }
+    }
+
     return $length;
 }
 
