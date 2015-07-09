@@ -45,20 +45,20 @@ subtest 'dont mess with continuation' => sub {
     $con->preface(1);
 
     $con->new_stream(1);
-    my $hdrs = $con->frame_encode( HEADERS, 0, 1, { hblock => \"\x82" } );
-    my $cont = $con->frame_encode( CONTINUATION, END_HEADERS, 1, \"\x85" );
-    my $data = $con->frame_encode( DATA,         0,           1, \"DATA" );
+    my @hdrs = ( HEADERS, 0, 1, { hblock => \"\x82" } );
+    my @cont = ( CONTINUATION, END_HEADERS, 1, \"\x85" );
+    my @data = ( DATA, 0, 1, \"DATA" );
 
-    $con->enqueue( $hdrs, $cont, $data );
+    $con->enqueue( @hdrs, @cont, @data );
 
-    ok binary_eq( $con->dequeue, $hdrs ), "1-HEADER";
+    ok binary_eq( $con->dequeue, $con->frame_encode(@hdrs) ), "1-HEADER";
 
-    my $ping = $con->frame_encode( PING, 0, 0, \"HELLOSRV" );
-    $con->enqueue_first($ping);
+    my @ping = ( PING, 0, 0, \"HELLOSRV" );
+    $con->enqueue_first(@ping);
 
-    ok binary_eq( $con->dequeue, $cont ), "2-CONTINUATION";
-    ok binary_eq( $con->dequeue, $ping ), "3-PING";
-    ok binary_eq( $con->dequeue, $data ), "4-DATA";
+    ok binary_eq( $con->dequeue, $con->frame_encode(@cont) ), "2-CONTINUATION";
+    ok binary_eq( $con->dequeue, $con->frame_encode(@ping) ), "3-PING";
+    ok binary_eq( $con->dequeue, $con->frame_encode(@data) ), "4-DATA";
 };
 
 done_testing

@@ -32,7 +32,8 @@ sub new {
         streams => {},
 
         last_stream => $type == CLIENT ? 1 : 2,
-        last_peer_stream => 0,
+        last_peer_stream    => 0,
+        active_peer_streams => 0,
 
         encode_ctx => {
 
@@ -84,6 +85,10 @@ sub new {
         # flow control
         fcw_send => DEFAULT_INITIAL_WINDOW_SIZE,
         fcw_recv => DEFAULT_INITIAL_WINDOW_SIZE,
+
+        # stream where expected CONTINUATION frames
+        pending_stream => undef,
+
     }, $class;
 
     for (qw(on_change_state on_new_peer_stream on_error upgrade)) {
@@ -107,51 +112,50 @@ sub encode_context {
     shift->{encode_ctx};
 }
 
+sub pending_stream {
+    shift->{pending_stream};
+}
+
 sub dequeue {
     my $self = shift;
     shift @{ $self->{queue} };
 }
 
-sub process_state {
-    my ( $self, $frame_ref ) = @_;
-    my ( $length, $type, $flags, $stream_id ) =
-      $self->frame_header_decode( $frame_ref, 0 );
-
-    # Sended frame may change state of stream
-    $self->state_machine( 'send', $type, $flags, $stream_id )
-      if $type != SETTINGS && $type != GOAWAY && $stream_id != 0;
+sub enqueue_raw {
+    my $self = shift;
+    push @{ $self->{queue} }, @_;
 }
 
 sub enqueue {
-    my ( $self, @frames ) = @_;
-    for (@frames) {
-        push @{ $self->{queue} }, $_;
-        $self->process_state( \$_ ) if !$self->upgrade && $self->preface;
+    my $self = shift;
+    while ( my ( $type, $flags, $stream_id, $data_ref ) = splice( @_, 0, 4 ) ) {
+        push @{ $self->{queue} },
+          $self->frame_encode( $type, $flags, $stream_id, $data_ref );
+        $self->state_machine( 'send', $type, $flags, $stream_id );
     }
 }
 
 sub enqueue_first {
-    my ( $self, @frames ) = @_;
-    my $i = 0;
+    my $self = shift;
+    my $i    = 0;
     for ( 0 .. $#{ $self->{queue} } ) {
         last
           if ( ( $self->frame_header_decode( \$self->{queue}->[$_], 0 ) )[1] !=
             CONTINUATION );
         $i++;
     }
-    for (@frames) {
-        splice @{ $self->{queue} }, $i++, 0, $_;
-        $self->process_state( \$_ );
+    while ( my ( $type, $flags, $stream_id, $data_ref ) = splice( @_, 0, 4 ) ) {
+        splice @{ $self->{queue} }, $i++, 0,
+          $self->frame_encode( $type, $flags, $stream_id, $data_ref );
+        $self->state_machine( 'send', $type, $flags, $stream_id );
     }
 }
 
 sub finish {
     my $self = shift;
-    $self->enqueue(
-        $self->frame_encode( GOAWAY, 0, 0,
-            [ $self->{last_peer_stream}, $self->{error} ]
-        )
-    ) unless $self->shutdown;
+    $self->enqueue( GOAWAY, 0, 0,
+        [ $self->{last_peer_stream}, $self->{error} ] )
+      unless $self->shutdown;
     $self->shutdown(1);
 }
 
@@ -181,6 +185,13 @@ sub upgrade {
 
 sub state_machine {
     my ( $self, $act, $type, $flags, $stream_id ) = @_;
+
+    return
+         if $stream_id == 0
+      || $type == SETTINGS
+      || $type == GOAWAY
+      || $self->upgrade
+      || !$self->preface;
 
     my $promised_sid = $self->stream_promised_sid($stream_id);
 
@@ -313,18 +324,12 @@ sub send_headers {
     my $flags = $end ? END_STREAM : 0;
     $flags |= END_HEADERS if length($header_block) <= $max_size;
 
-    $self->enqueue(
-        $self->frame_encode( HEADERS, $flags, $stream_id,
-            { hblock => \substr( $header_block, 0, $max_size, '' ) }
-        )
-    );
+    $self->enqueue( HEADERS, $flags, $stream_id,
+        { hblock => \substr( $header_block, 0, $max_size, '' ) } );
     while ( length($header_block) > 0 ) {
         my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
-        $self->enqueue(
-            $self->frame_encode( CONTINUATION, $flags,
-                $stream_id, \substr( $header_block, 0, $max_size, '' )
-            )
-        );
+        $self->enqueue( CONTINUATION, $flags,
+            $stream_id, \substr( $header_block, 0, $max_size, '' ) );
     }
 }
 
@@ -336,19 +341,13 @@ sub send_pp_headers {
 
     my $flags = length($header_block) <= $max_size ? END_HEADERS : 0;
 
-    $self->enqueue(
-        $self->frame_encode( PUSH_PROMISE, $flags, $stream_id,
-            [ $promised_id, \substr( $header_block, 0, $max_size - 4, '' ) ]
-        )
-    );
+    $self->enqueue( PUSH_PROMISE, $flags, $stream_id,
+        [ $promised_id, \substr( $header_block, 0, $max_size - 4, '' ) ] );
 
     while ( length($header_block) > 0 ) {
         my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
-        $self->enqueue(
-            $self->frame_encode( CONTINUATION, $flags,
-                $stream_id, \substr( $header_block, 0, $max_size, '' )
-            )
-        );
+        $self->enqueue( CONTINUATION, $flags,
+            $stream_id, \substr( $header_block, 0, $max_size, '' ) );
     }
 }
 
@@ -375,9 +374,8 @@ sub send_data {
         $self->stream_fcw_send( $stream_id, -$size );
 
         $self->enqueue(
-            $self->frame_encode( DATA, $end && $l == $size ? END_STREAM : 0,
-                $stream_id, \substr( $data, 0, $size, '' )
-            )
+            DATA, $end && $l == $size ? END_STREAM : 0,
+            $stream_id, \substr( $data, 0, $size, '' )
         );
         last if $l == $size;
     }
@@ -410,7 +408,7 @@ sub _setting {
     my $s = $self->{$ctx}->{settings};
     return undef unless exists $s->{$setting};
     $s->{$setting} = pop if @_ > 3;
-    return $s->{$setting};
+    $s->{$setting};
 }
 
 sub enc_setting {
@@ -423,7 +421,7 @@ sub dec_setting {
 
 sub accept_settings {
     my $self = shift;
-    $self->enqueue( $self->frame_encode( SETTINGS, ACK, 0, {} ) );
+    $self->enqueue( SETTINGS, ACK, 0, {} );
 }
 
 # Flow control windown of connection
@@ -452,14 +450,24 @@ sub fcw_update {
     # TODO: check size of data in memory
     tracer->debug("update fcw recv of connection\n");
     $self->fcw_recv(DEFAULT_INITIAL_WINDOW_SIZE);
-    $self->enqueue(
-        $self->frame_encode( WINDOW_UPDATE, 0, 0, DEFAULT_INITIAL_WINDOW_SIZE )
-    );
+    $self->enqueue( WINDOW_UPDATE, 0, 0, DEFAULT_INITIAL_WINDOW_SIZE );
+}
+
+sub fcw_initial_change {
+    my ( $self, $size ) = @_;
+    my $prev_size = $self->enc_setting(SETTINGS_INITIAL_WINDOW_SIZE);
+    my $diff      = $size - $prev_size;
+    tracer->debug(
+        "Change flow control window on not closed streams with diff $diff\n");
+    for my $stream_id ( keys %{ $self->{streams} } ) {
+        next if $self->stream_state($stream_id) == CLOSED;
+        $self->stream_fcw_send( $stream_id, $diff );
+    }
 }
 
 sub ack_ping {
     my ( $self, $payload_ref ) = @_;
-    $self->enqueue_first( $self->frame_encode( PING, ACK, 0, $payload_ref ) );
+    $self->enqueue_first( PING, ACK, 0, $payload_ref );
 }
 
 1;

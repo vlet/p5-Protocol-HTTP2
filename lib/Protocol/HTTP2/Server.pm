@@ -201,8 +201,7 @@ sub new {
     $self->{con} =
       Protocol::HTTP2::Connection->new( SERVER, %opts,
         settings => $self->{settings} );
-    $self->{con}->enqueue(
-        $self->{con}->frame_encode( SETTINGS, 0, 0, $self->{settings} ) )
+    $self->{con}->enqueue( SETTINGS, 0, 0, $self->{settings} )
       unless $self->{con}->upgrade;
 
     bless $self, $class;
@@ -498,8 +497,7 @@ sub feed {
     my ( $self, $chunk ) = @_;
     $self->{input} .= $chunk;
     my $offset = 0;
-    my $len;
-    my $con = $self->{con};
+    my $con    = $self->{con};
     tracer->debug( "got " . length($chunk) . " bytes on a wire\n" );
 
     if ( $con->upgrade ) {
@@ -511,15 +509,12 @@ sub feed {
 
         substr( $self->{input}, $offset, $len ) = '';
 
-        $con->enqueue(
-            $con->upgrade_response,
-            $con->frame_encode( SETTINGS, 0, 0,
-                {
-                    &SETTINGS_MAX_CONCURRENT_STREAMS =>
-                      DEFAULT_MAX_CONCURRENT_STREAMS
-                }
-              )
-
+        $con->enqueue_raw( $con->upgrade_response );
+        $con->enqueue( SETTINGS, 0, 0,
+            {
+                &SETTINGS_MAX_CONCURRENT_STREAMS =>
+                  DEFAULT_MAX_CONCURRENT_STREAMS
+            }
         );
         $con->upgrade(0);
 
@@ -535,13 +530,18 @@ sub feed {
     }
 
     if ( !$con->preface ) {
-        return unless $len = $con->preface_decode( \$self->{input}, $offset );
+        my $len = $con->preface_decode( \$self->{input}, $offset );
+        unless ( defined $len ) {
+            tracer->error("invalid preface. shutdown connection\n");
+            $con->shutdown(1);
+        }
+        return unless $len;
         tracer->debug("got preface\n");
         $offset += $len;
         $con->preface(1);
     }
 
-    while ( $len = $con->frame_decode( \$self->{input}, $offset ) ) {
+    while ( my $len = $con->frame_decode( \$self->{input}, $offset ) ) {
         tracer->debug("decoded frame at $offset, length $len\n");
         $offset += $len;
     }

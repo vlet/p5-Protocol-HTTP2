@@ -314,7 +314,7 @@ sub request {
     my $stream_id = $con->new_stream;
 
     if ( $con->upgrade && !exists $self->{sent_upgrade} ) {
-        $con->enqueue(
+        $con->enqueue_raw(
             $con->upgrade_request(
                 ( map { $_ => $h{$_} } @must ),
                 headers => exists $h{headers} ? $h{headers} : []
@@ -325,8 +325,8 @@ sub request {
     }
     else {
         if ( !$con->preface ) {
-            $con->enqueue( $con->preface_encode,
-                $con->frame_encode( SETTINGS, 0, 0, $self->{settings} ) );
+            $con->enqueue_raw( $con->preface_encode ),
+              $con->enqueue( SETTINGS, 0, 0, $self->{settings} );
             $con->preface(1);
         }
 
@@ -447,7 +447,7 @@ sub feed {
         return unless $len;
         $offset += $len;
         $con->upgrade(0);
-        $con->enqueue( $con->preface_encode );
+        $con->enqueue_raw( $con->preface_encode );
         $con->preface(1);
     }
     while ( $len = $con->frame_decode( \$self->{input}, $offset ) ) {
