@@ -2,6 +2,23 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.03 2015-07-09T21:09:54Z
+    - reworked enqueue() method, implemented enqueue_raw()
+    - return error when CONTINUATION frames interrupted by other frames
+    - check length of RST_STREAM and WINDOW_UPDATE frames
+    - implemented validation rules for settings SETTINGS_ENABLE_PUSH and
+      SETTINGS_INITIAL_WINDOW_SIZE
+    - update flow control window size on active streams when receive
+      SETTINGS_INITIAL_WINDOW_SIZE
+    - fixed bug: now send ack on empty settings
+    - fixed bug: flow control window for sended frames used to be initialized
+      with wrong value
+    - strict validation of headers
+    - check for explicit content-length header to match size of received DATA
+      frames
+    - control for maximum concurent streams
+    - fixed tests
+
 1.02 2015-06-22T17:27:01Z
     - fixed leaks test
 
