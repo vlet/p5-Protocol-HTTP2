@@ -10,7 +10,14 @@ sub decode {
 
     # RST_STREAM associated with stream
     if ( $frame_ref->{stream} == 0 ) {
+        tracer->error("Received reset stream with stream id 0");
         $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
+
+    if ( $length != 4 ) {
+        tracer->error("Received reset stream with invalid length $length");
+        $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
