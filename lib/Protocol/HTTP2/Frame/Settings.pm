@@ -5,9 +5,31 @@ use Protocol::HTTP2::Constants qw(const_name :flags :errors :limits :settings);
 use Protocol::HTTP2::Trace qw(tracer);
 
 my %s_check = (
-    &SETTINGS_MAX_FRAME_SIZE => sub {
-        $_[0] <= MAX_PAYLOAD_SIZE && $_[0] >= DEFAULT_MAX_FRAME_SIZE;
+    &SETTINGS_MAX_FRAME_SIZE => {
+        validator => sub {
+            $_[0] <= MAX_PAYLOAD_SIZE && $_[0] >= DEFAULT_MAX_FRAME_SIZE;
+        },
+        error => PROTOCOL_ERROR
     },
+    &SETTINGS_ENABLE_PUSH => {
+        validator => sub {
+            $_[0] == 0 || $_[0] == 1;
+        },
+        error => PROTOCOL_ERROR
+    },
+    &SETTINGS_INITIAL_WINDOW_SIZE => {
+        validator => sub {
+            $_[0] <= MAX_FCW_SIZE;
+        },
+        error => FLOW_CONTROL_ERROR
+    },
+);
+
+my %s_action = (
+    &SETTINGS_INITIAL_WINDOW_SIZE => sub {
+        my ( $con, $size ) = @_;
+        $con->fcw_initial_change($size);
+    }
 );
 
 sub decode {
@@ -19,19 +41,22 @@ sub decode {
         return undef;
     }
 
+    # just ack for our previous settings
     if ( $frame_ref->{flags} & ACK ) {
-
-        # just ack for our previous settings
         if ( $length != 0 ) {
             tracer->error(
                 "ACK settings frame have non-zero ($length) payload\n");
             $con->error(FRAME_SIZE_ERROR);
             return undef;
         }
+        return 0
 
+          # received empty settings (default), accept it
     }
-
-    return 0 if $length == 0;
+    elsif ( $length == 0 ) {
+        $con->accept_settings();
+        return 0;
+    }
 
     if ( $length % 6 != 0 ) {
         tracer->error("Settings frame payload is broken (lenght $length)\n");
@@ -48,14 +73,17 @@ sub decode {
             next;
         }
         elsif ( exists $s_check{$key}
-            && !$s_check{$key}->($value) )
+            && !$s_check{$key}{validator}->($value) )
         {
             tracer->debug( "\tInvalid value of setting "
                   . const_name( "settings", $key ) . ": "
                   . $value );
-            $con->error(PROTOCOL_ERROR);
+            $con->error( $s_check{$key}{error} );
             return undef;
         }
+
+        # Settings change may run some action
+        $s_action{$key}->( $con, $value ) if exists $s_action{$key};
 
         tracer->debug(
             "\tSettings " . const_name( "settings", $key ) . " = $value\n" );
