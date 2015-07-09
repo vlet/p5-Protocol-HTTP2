@@ -8,8 +8,21 @@ sub decode {
     my ( $con, $buf_ref, $buf_offset, $length ) = @_;
     my $frame_ref = $con->decode_context->{frame};
 
+    if ( $length != 4 ) {
+        tracer->error(
+            "Received windows_update frame with invalid length $length");
+        $con->error(FRAME_SIZE_ERROR);
+        return undef;
+    }
+
     my $fcw_add = unpack 'N', substr $$buf_ref, $buf_offset, 4;
     $fcw_add &= 0x7FFF_FFFF;
+
+    if ( $fcw_add == 0 ) {
+        tracer->error("Received flow-control window increment of 0");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
 
     if ( $frame_ref->{stream} == 0 ) {
         if ( $con->fcw_send($fcw_add) > MAX_FCW_SIZE ) {
