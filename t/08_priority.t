@@ -22,16 +22,27 @@ subtest 'priority frame' => sub {
     my $res = $con->frame_decode( \$frame, 0 );
     is $res, 14, "decoded correctly";
 
-    $frame =
-      $con->frame_encode( HEADERS, END_HEADERS, 1,
-        { hblock => \"\x82", stream_dep => 0, weight => 32 } );
+    $frame = $con->frame_encode( HEADERS,
+        END_HEADERS,
+        1,
+        {
+            hblock     => \hstr("41 8aa0 e41d 139d 09b8 f000 0f82 8486"),
+            stream_dep => 0,
+            weight     => 32
+        }
+    );
 
-    ok binary_eq( $frame, hstr("000006 0124 0000 0001 0000 0000 1F82") ),
+    ok binary_eq(
+        $frame,
+        hstr(
+                "0000 1401 2400 0000 0100 0000 001f 418a"
+              . "a0e4 1d13 9d09 b8f0 000f 8284 86"
+        )
+      ),
       "Headers with priority";
 
     $res = $con->frame_decode( \$frame, 0 );
-    is $res, 15, "decoded correctly";
-
+    is $res, 29, "decoded correctly";
 };
 
 subtest 'stream reprioritization' => sub {
