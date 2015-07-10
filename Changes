@@ -2,6 +2,12 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.04 2015-07-10T20:19:19Z
+    - fixed bug: Chrome send ':path' as literal header, make exception for
+      pseudo headers in header check
+    - make exceptions for RST_STREAM frames in state_machine
+    - fixed debuging level
+
 1.03 2015-07-09T21:09:54Z
     - reworked enqueue() method, implemented enqueue_raw()
     - return error when CONTINUATION frames interrupted by other frames
