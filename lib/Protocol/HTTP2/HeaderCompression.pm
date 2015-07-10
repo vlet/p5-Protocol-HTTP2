@@ -198,8 +198,9 @@ sub headers_decode {
                 return undef;
             }
 
-            if ( $key =~ /[^a-z0-9\!\#\$\%\&\'\*\+\-\^\_\`]/ ) {
-                tracer->error("Illegal characters in header name");
+            if ( $key =~ /[^a-z0-9\!\#\$\%\&\'\*\+\-\^\_\`]/ && $key !~ /^\:/ )
+            {
+                tracer->warning("Illegal characters in header name");
                 $con->stream_error( $stream_id, PROTOCOL_ERROR );
                 return undef;
             }
