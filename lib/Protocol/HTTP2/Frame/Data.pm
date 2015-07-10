@@ -34,7 +34,7 @@ sub decode {
     my $fcw = $con->fcw_recv( -$length );
     my $stream_fcw = $con->stream_fcw_recv( $frame_ref->{stream}, -$length );
     if ( $fcw < 0 || $stream_fcw < 0 ) {
-        tracer->debug(
+        tracer->warning(
             "received data overflow flow control window: $fcw|$stream_fcw\n");
         $con->stream_error( $frame_ref->{stream}, FLOW_CONTROL_ERROR );
         return $length;
@@ -57,7 +57,7 @@ sub decode {
         if ( defined $slen
             && $slen != length $con->stream_data( $frame_ref->{stream} ) )
         {
-            tracer->error(
+            tracer->warning(
                 "content-length header don't match data frames size\n");
             $con->stream_error( $frame_ref->{stream}, PROTOCOL_ERROR );
         }

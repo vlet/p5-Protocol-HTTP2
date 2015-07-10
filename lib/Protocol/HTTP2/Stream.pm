@@ -39,7 +39,7 @@ sub new_peer_stream {
     if ( $self->dec_setting(SETTINGS_MAX_CONCURRENT_STREAMS) <=
         $self->{active_peer_streams} )
     {
-        tracer->error("SETTINGS_MAX_CONCURRENT_STREAMS exceeded\n");
+        tracer->warning("SETTINGS_MAX_CONCURRENT_STREAMS exceeded\n");
         $self->stream_error( $stream_id, REFUSED_STREAM );
         return undef;
     }
@@ -264,18 +264,18 @@ sub validate_headers {
         my ( $h, $v ) = ( $headers->[ $i * 2 ], $headers->[ $i * 2 + 1 ] );
         if ( $h =~ /^\:/ ) {
             if ( !$pseudo_flag ) {
-                tracer->debug(
+                tracer->warning(
                     "pseudo-header <$h> appears after a regular header");
                 $self->stream_error( $stream_id, PROTOCOL_ERROR );
                 return undef;
             }
             elsif ( !grep { $_ eq $h } @h ) {
-                tracer->debug("invalid pseudo-header <$h>");
+                tracer->warning("invalid pseudo-header <$h>");
                 $self->stream_error( $stream_id, PROTOCOL_ERROR );
                 return undef;
             }
             elsif ( exists $pseudo_hash{$h} ) {
-                tracer->debug("invalid pseudo-header <$h>");
+                tracer->warning("repeated pseudo-header <$h>");
                 $self->stream_error( $stream_id, PROTOCOL_ERROR );
                 return undef;
             }
@@ -287,12 +287,12 @@ sub validate_headers {
         $pseudo_flag = 0 if $pseudo_flag;
 
         if ( $h eq 'connection' ) {
-            tracer->debug("connection header are not valid in http/2");
+            tracer->warning("connection header are not valid in http/2");
             $self->stream_error( $stream_id, PROTOCOL_ERROR );
             return undef;
         }
         elsif ( $h eq 'te' && $v ne 'trailers' ) {
-            tracer->debug("TE header can contain only value 'trailers'");
+            tracer->warning("TE header can contain only value 'trailers'");
             $self->stream_error( $stream_id, PROTOCOL_ERROR );
             return undef;
         }
@@ -304,7 +304,7 @@ sub validate_headers {
     for my $h (@h) {
         next if exists $pseudo_hash{$h};
 
-        tracer->debug("missed mandatory pseudo-header $h");
+        tracer->warning("missed mandatory pseudo-header $h");
         $self->stream_error( $stream_id, PROTOCOL_ERROR );
         return undef;
     }

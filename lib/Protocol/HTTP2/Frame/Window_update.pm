@@ -35,6 +35,7 @@ sub decode {
     else {
         my $fcw = $con->stream_fcw_send( $frame_ref->{stream}, $fcw_add );
         if ( defined $fcw && $fcw > MAX_FCW_SIZE ) {
+            tracer->warning("flow-control window size exceeded MAX_FCW_SIZE");
             $con->stream_error( $frame_ref->{stream}, FLOW_CONTROL_ERROR );
         }
         elsif ( defined $fcw ) {
