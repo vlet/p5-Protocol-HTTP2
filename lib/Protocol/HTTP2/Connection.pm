@@ -197,6 +197,9 @@ sub state_machine {
 
     my $prev_state = $self->{streams}->{ $promised_sid || $stream_id }->{state};
 
+    # REFUSED_STREAM error
+    return if !defined $prev_state && $type == RST_STREAM && $act eq 'send';
+
     # Direction server->client
     my $srv2cln = ( $self->{type} == SERVER && $act eq 'send' )
       || ( $self->{type} == CLIENT && $act eq 'recv' );
@@ -216,7 +219,6 @@ sub state_machine {
     #    $pending ? "*" : "",
     #    const_name( "states", $prev_state ),
     #    $promised_sid || $stream_id,
-    #    $stream_id,
     #);
 
     # Wait until all CONTINUATION frames arrive
@@ -246,6 +248,12 @@ sub state_machine {
             $self->stream_state( $promised_sid, RESERVED, $pending );
             $self->stream_promised_sid( $stream_id, undef )
               if $flags & END_HEADERS;
+        }
+
+        # first frame in stream is invalid, so state is yet IDLE
+        elsif ( $type == RST_STREAM && $act eq 'send' ) {
+            tracer->notice('send RST_STREAM on IDLE state. possible bug?');
+            $self->stream_state( $stream_id, CLOSED );
         }
         elsif ( $type != PRIORITY ) {
             tracer->error(
