@@ -237,7 +237,7 @@ Prepare HTTP/2 request.
 
         # HTTP/1.1 headers
         headers      => [
-            'content-type => 'application/x-www-form-urlencoded',
+            'content-type' => 'application/x-www-form-urlencoded',
             'user-agent' => 'perl-Protocol-HTTP2/0.06',
         ],
 
