@@ -2,6 +2,10 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.05 2015-12-24T12:40:10Z
+    - support for request body
+    - new client/server examples with IO::Socket::SSL
+
 1.04 2015-07-10T20:19:19Z
     - fixed bug: Chrome send ':path' as literal header, make exception for
       pseudo headers in header check
