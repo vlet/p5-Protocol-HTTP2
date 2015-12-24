@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Protocol::HTTP2::Trace qw(bin2hex);
 use Exporter qw(import);
-our @EXPORT = qw(hstr binary_eq);
+our @EXPORT = qw(hstr binary_eq fake_connect);
 
 sub hstr {
     my $str = shift;
@@ -26,6 +26,18 @@ sub binary_eq {
         print "$b1\n not equal \n$b2 \n";
         return 0;
     }
+}
+
+sub fake_connect {
+    my ( $server, $client ) = @_;
+
+    my ( $clt_frame, $srv_frame );
+    do {
+        $clt_frame = $client->next_frame;
+        $srv_frame = $server->next_frame;
+        $server->feed($clt_frame) if $clt_frame;
+        $client->feed($srv_frame) if $srv_frame;
+    } while ( $clt_frame || $srv_frame );
 }
 
 1;

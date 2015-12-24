@@ -3,18 +3,8 @@ use warnings;
 use Test::More;
 use Protocol::HTTP2::Client;
 use Protocol::HTTP2::Server;
-
-sub fake_connect {
-    my ( $server, $client ) = @_;
-
-    my ( $clt_frame, $srv_frame );
-    do {
-        $clt_frame = $client->next_frame;
-        $srv_frame = $server->next_frame;
-        $server->feed($clt_frame) if $clt_frame;
-        $client->feed($srv_frame) if $srv_frame;
-    } while ( $clt_frame || $srv_frame );
-}
+use lib 't/lib';
+use PH2Test qw(fake_connect);
 
 subtest 'server stream' => sub {
 
