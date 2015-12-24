@@ -232,12 +232,12 @@ Prepare HTTP/2 request.
         # HTTP/2 headers
         ':scheme'    => 'http',
         ':authority' => 'localhost:8000',
-        ':path'      => '/',
-        ':method'    => 'GET',
+        ':path'      => '/items',
+        ':method'    => 'POST',
 
         # HTTP/1.1 headers
         headers      => [
-            'accept'     => '*/*',
+            'content-type => 'application/x-www-form-urlencoded',
             'user-agent' => 'perl-Protocol-HTTP2/0.06',
         ],
 
@@ -246,6 +246,9 @@ Prepare HTTP/2 request.
             my ( $headers, $data ) = @_;
             ...
         },
+
+        # Body of POST request
+        data => "hello=world&test=done",
     );
 
 You can chaining request one by one:
@@ -336,8 +339,9 @@ sub request {
                 ( map { $_ => $h{$_} } @must ),
                 exists $h{headers} ? @{ $h{headers} } : ()
             ],
-            1
+            exists $h{data} ? 0 : 1
         );
+        $con->send_data( $stream_id, $h{data}, 1 ) if exists $h{data};
     }
 
     Scalar::Util::weaken $self;
