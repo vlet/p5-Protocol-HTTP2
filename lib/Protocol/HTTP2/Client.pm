@@ -136,10 +136,15 @@ If server send push promise this callback will be invoked
 =item upgrade => 0|1
 
 Use HTTP/1.1 Upgrade to upgrade protocol from HTTP/1.1 to HTTP/2. Upgrade
-possible only on plain (non-tls) connection.
+possible only on plain (non-tls) connection. Default value is 0.
 
 See
 L<Starting HTTP/2 for "http" URIs|https://tools.ietf.org/html/rfc7540#section-3.2>
+
+=item keepalive => 0|1
+
+Keep connection alive after requests. Default value is 0. Don't forget to
+explicitly call close method if set this to true.
 
 =item on_error => sub {...}
 
@@ -171,7 +176,10 @@ sub new {
         con            => undef,
         input          => '',
         active_streams => 0,
-        settings       => exists $opts{settings} ? $opts{settings} : {},
+        keepalive      => exists $opts{keepalive}
+        ? delete $opts{keepalive}
+        : 0,
+        settings => exists $opts{settings} ? $opts{settings} : {},
     };
 
     if ( exists $opts{on_push} ) {
@@ -220,7 +228,9 @@ sub active_streams {
     my $self = shift;
     my $add = shift || 0;
     $self->{active_streams} += $add;
-    $self->{con}->finish unless $self->{active_streams} > 0;
+    $self->{con}->finish
+      unless $self->{active_streams} > 0
+      || $self->{keepalive};
 }
 
 =head3 request
@@ -310,11 +320,20 @@ sub request {
     my @miss = grep { !exists $h{$_} } @must;
     croak "Missing fields in request: @miss" if @miss;
 
-    $self->active_streams(+1);
-
     my $con = $self->{con};
 
     my $stream_id = $con->new_stream;
+    unless ( defined $stream_id ) {
+        if ( exists $con->{on_error} ) {
+            $con->{on_error}->(PROTOCOL_ERROR);
+            return $self;
+        }
+        else {
+            croak "Can't create new stream, connection is closed";
+        }
+    }
+
+    $self->active_streams(+1);
 
     if ( $con->upgrade && !exists $self->{sent_upgrade} ) {
         $con->enqueue_raw(
@@ -382,6 +401,22 @@ sub request {
     return $self;
 }
 
+=head3 keepalive
+
+Keep connection alive after requests
+
+    my $bool = $client->keepalive;
+    $client = $client->keepalive($bool);
+
+=cut
+
+sub keepalive {
+    my $self = shift;
+    return @_
+      ? scalar( $self->{keepalive} = shift, $self )
+      : $self->{keepalive};
+}
+
 =head3 shutdown
 
 Get connection status:
@@ -398,6 +433,17 @@ Get connection status:
 
 sub shutdown {
     shift->{con}->shutdown;
+}
+
+=head3 close
+
+Explicitly close connection (send GOAWAY frame). This is requred if client
+has keepalive option enabled.
+
+=cut
+
+sub close {
+    shift->{con}->finish;
 }
 
 =head3 next_frame
