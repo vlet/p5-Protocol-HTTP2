@@ -5,7 +5,7 @@ use constant {
 
     # Header Compression
     MAX_INT_SIZE     => 4,
-    MAX_PAYLOAD_SIZE => ( 1 << 23 ) - 1,
+    MAX_PAYLOAD_SIZE => ( 1 << 24 ) - 1,
 
     # Frame
     FRAME_HEADER_SIZE => 9,

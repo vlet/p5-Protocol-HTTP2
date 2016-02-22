@@ -3,6 +3,8 @@ Revision history for Perl extension Protocol-HTTP2
 {{$NEXT}}
     - implemented keepalive option for client (#1)
     - explicit connection closing for client  (#1)
+    - fixed MAX_PAYLOAD_SIZE constant value (thanks to Francisco Obispo for
+      bugreport)
 
 1.05 2015-12-24T12:40:10Z
     - support for request body
