@@ -28,7 +28,8 @@ subtest 'ping' => sub {
         }
     }
 
-    my $ping = $client->{con}->frame_encode( PING, 0, 0, \"HELLOSRV" );
+    $client->ping("HELLOSRV");
+    my $ping = $client->next_frame;
     ok binary_eq( $ping, hstr("0000 0806 0000 0000 0048 454c 4c4f 5352 56") ),
       "ping";
     $server->feed($ping);
