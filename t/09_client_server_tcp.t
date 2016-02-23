@@ -43,7 +43,7 @@ subtest 'client/server' => sub {
 
         eval {
             local $SIG{ALRM} = sub { die "timeout\n" };
-            alarm 5;
+            alarm 16;
             test_tcp(
                 client => sub {
                     my $port = shift;
