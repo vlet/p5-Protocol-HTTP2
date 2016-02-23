@@ -507,4 +507,23 @@ sub feed {
     substr( $self->{input}, 0, $offset ) = '' if $offset;
 }
 
+=head3 ping
+
+Send ping frame to server (to keep connection alive)
+
+    $client->ping
+
+or
+
+    $client->ping($payload);
+
+Payload can be arbitrary binary string and must contain 8 octets. If payload argument
+is omitted client will send random data.
+
+=cut
+
+sub ping {
+    shift->{con}->send_ping(@_);
+}
+
 1;

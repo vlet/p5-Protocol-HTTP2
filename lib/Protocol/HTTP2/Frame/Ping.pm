@@ -1,7 +1,7 @@
 package Protocol::HTTP2::Frame::Ping;
 use strict;
 use warnings;
-use Protocol::HTTP2::Constants qw(:flags :errors);
+use Protocol::HTTP2::Constants qw(:flags :errors :limits);
 use Protocol::HTTP2::Trace qw(tracer);
 
 sub decode {
@@ -14,7 +14,7 @@ sub decode {
         ||
 
         # payload is 8 octets
-        $length != 8
+        $length != PING_PAYLOAD_SIZE
       )
     {
         $con->error(PROTOCOL_ERROR);
@@ -29,7 +29,7 @@ sub decode {
 
 sub encode {
     my ( $con, $flags_ref, $stream, $data_ref ) = @_;
-    if ( length($$data_ref) != 8 ) {
+    if ( length($$data_ref) != PING_PAYLOAD_SIZE ) {
         $con->error(INTERNAL_ERROR);
         return undef;
     }

@@ -139,9 +139,9 @@ sub enqueue_first {
     my $self = shift;
     my $i    = 0;
     for ( 0 .. $#{ $self->{queue} } ) {
-        last
-          if ( ( $self->frame_header_decode( \$self->{queue}->[$_], 0 ) )[1] !=
-            CONTINUATION );
+        my $type =
+          ( $self->frame_header_decode( \$self->{queue}->[$_], 0 ) )[1];
+        last if $type != CONTINUATION && $type != PING;
         $i++;
     }
     while ( my ( $type, $flags, $stream_id, $data_ref ) = splice( @_, 0, 4 ) ) {
@@ -476,6 +476,18 @@ sub fcw_initial_change {
 sub ack_ping {
     my ( $self, $payload_ref ) = @_;
     $self->enqueue_first( PING, ACK, 0, $payload_ref );
+}
+
+sub send_ping {
+    my ( $self, $payload ) = @_;
+    if ( !defined $payload ) {
+        $payload = pack "C*", map { rand(256) } 1 .. PING_PAYLOAD_SIZE;
+    }
+    elsif ( length($payload) != PING_PAYLOAD_SIZE ) {
+        $payload = sprintf "%*.*s",
+          -PING_PAYLOAD_SIZE, PING_PAYLOAD_SIZE, $payload;
+    }
+    $self->enqueue( PING, 0, 0, \$payload );
 }
 
 1;
