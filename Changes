@@ -1,6 +1,7 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+    - implemented ping() method for client and server
 
 1.06 2016-02-22T08:56:19Z
     - implemented keepalive option for client (#1)
