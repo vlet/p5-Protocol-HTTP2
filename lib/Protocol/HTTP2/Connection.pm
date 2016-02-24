@@ -485,7 +485,7 @@ sub send_ping {
     }
     elsif ( length($payload) != PING_PAYLOAD_SIZE ) {
         $payload = sprintf "%*.*s",
-          -PING_PAYLOAD_SIZE, PING_PAYLOAD_SIZE, $payload;
+          -PING_PAYLOAD_SIZE(), PING_PAYLOAD_SIZE, $payload;
     }
     $self->enqueue( PING, 0, 0, \$payload );
 }
