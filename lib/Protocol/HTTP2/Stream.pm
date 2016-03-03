@@ -441,7 +441,10 @@ sub stream_end {
 
 sub stream_reprio {
     my ( $self, $stream_id, $exclusive, $stream_dep ) = @_;
-    return undef unless exists $self->{streams}->{$stream_id};
+    return undef
+      unless exists $self->{streams}->{$stream_id}
+      && ( $stream_dep == 0 || exists $self->{streams}->{$stream_dep} )
+      && $stream_id != $stream_dep;
     my $s = $self->{streams};
 
     if ( $s->{$stream_id}->{stream_dep} != $stream_dep ) {

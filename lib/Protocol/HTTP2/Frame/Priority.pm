@@ -26,7 +26,13 @@ sub decode {
     $weight++;
 
     $con->stream_weight( $frame_ref->{stream}, $weight );
-    $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep );
+    unless (
+        $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep ) )
+    {
+        tracer->error("Malformed priority frame");
+        $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
 
     return $length;
 }

@@ -33,7 +33,16 @@ sub decode {
         $weight++;
 
         $con->stream_weight( $frame_ref->{stream}, $weight );
-        $con->stream_reprio( $frame_ref->{stream}, $exclusive, $stream_dep, );
+        unless (
+            $con->stream_reprio(
+                $frame_ref->{stream}, $exclusive, $stream_dep
+            )
+          )
+        {
+            tracer->error("Malformed HEADERS frame priority");
+            $con->error(PROTOCOL_ERROR);
+            return undef;
+        }
 
         $offset += 5;
     }
