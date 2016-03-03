@@ -243,6 +243,12 @@ sub state_machine {
         }
     }
 
+    # Unexpected CONTINUATION frame
+    elsif ( $type == CONTINUATION ) {
+        tracer->error("Unexpected CONTINUATION frame\n");
+        $self->error(PROTOCOL_ERROR);
+    }
+
     # State machine
     # IDLE
     elsif ( $prev_state == IDLE ) {
