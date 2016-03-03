@@ -9,15 +9,14 @@ sub decode {
     my $frame_ref = $con->decode_context->{frame};
 
     # PING associated with connection
-    if (
-        $frame_ref->{stream} != 0
-        ||
-
-        # payload is 8 octets
-        $length != PING_PAYLOAD_SIZE
-      )
-    {
+    if ( $frame_ref->{stream} != 0 ) {
         $con->error(PROTOCOL_ERROR);
+        return undef;
+    }
+
+    # payload is 8 octets
+    if ( $length != PING_PAYLOAD_SIZE ) {
+        $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 
