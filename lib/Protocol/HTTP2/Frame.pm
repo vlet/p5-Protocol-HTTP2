@@ -78,7 +78,7 @@ sub frame_decode {
 
     if ( $length > $con->dec_setting(SETTINGS_MAX_FRAME_SIZE) ) {
         tracer->error("Frame is too large: $length\n");
-        $con->error(PROTOCOL_ERROR);
+        $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
 

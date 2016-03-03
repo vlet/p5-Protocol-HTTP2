@@ -41,7 +41,7 @@ sub decode {
     # Not enough space for header block
     my $hblock_size = $length - $offset - $pad;
     if ( $hblock_size < 0 ) {
-        $con->error(FRAME_SIZE_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 

@@ -27,7 +27,7 @@ sub decode {
     my $dblock_size = $length - $offset - $pad;
     if ( $dblock_size < 0 ) {
         tracer->error("Not enough space for data block\n");
-        $con->error(FRAME_SIZE_ERROR);
+        $con->error(PROTOCOL_ERROR);
         return undef;
     }
 
