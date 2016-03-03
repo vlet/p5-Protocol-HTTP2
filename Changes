@@ -1,7 +1,12 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+
+1.07 2016-03-03T20:44:19Z
     - implemented ping() method for client and server
+    - implemented trailer headers support
+    - fixed some error codes
+    - improved header table size handling
 
 1.06 2016-02-22T08:56:19Z
     - implemented keepalive option for client (#1)
