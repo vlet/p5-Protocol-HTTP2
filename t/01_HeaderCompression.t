@@ -99,7 +99,7 @@ subtest 'encode responses' => sub {
 
     my $con = Protocol::HTTP2::Connection->new(SERVER);
     my $ctx = $con->encode_context;
-    $ctx->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} = 256;
+    $ctx->{max_ht_size} = 256;
 
     ok binary_eq(
         headers_encode(

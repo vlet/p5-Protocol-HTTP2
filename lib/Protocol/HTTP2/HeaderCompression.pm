@@ -103,9 +103,7 @@ sub evict_ht {
 
     my $ht = $context->{header_table};
 
-    while ( $context->{ht_size} + $size >
-        $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} )
-    {
+    while ( $context->{ht_size} + $size > $context->{max_ht_size} ) {
         my $n      = $#$ht;
         my $kv_ref = pop @$ht;
         $context->{ht_size} -=
@@ -120,7 +118,7 @@ sub evict_ht {
 sub add_to_ht {
     my ( $context, $key, $value ) = @_;
     my $size = length($key) + length($value) + 32;
-    return () if $size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE};
+    return () if $size > $context->{max_ht_size};
 
     my @evicted = evict_ht( $context, $size );
 
@@ -145,13 +143,13 @@ sub headers_decode {
     while ( $offset < $length ) {
 
         my $f = vec( $$buf_ref, $buf_offset + $offset, 8 );
-        tracer->debug("\toffset: $offset\n");
+        tracer->debug( sprintf "\toffset: %d, byte: %02x\n", $offset, $f );
 
         # Indexed Header
         if ( $f & 0x80 ) {
             my $size =
               int_decode( $buf_ref, $buf_offset + $offset, \my $index, 7 );
-            return $offset unless $size;
+            last unless $size;
 
             # DECODING ERROR
             if ( $index == 0 ) {
@@ -190,7 +188,7 @@ sub headers_decode {
         elsif ( $f == 0x40 || $f == 0x00 || $f == 0x10 ) {
             my $key_size =
               str_decode( $buf_ref, $buf_offset + $offset + 1, \my $key );
-            return $offset unless $key_size;
+            last unless $key_size;
 
             if ( $key_size == 1 ) {
                 tracer->error("Empty literal header name");
@@ -208,7 +206,7 @@ sub headers_decode {
             my $value_size =
               str_decode( $buf_ref, $buf_offset + $offset + 1 + $key_size,
                 \my $value );
-            return $offset unless $value_size;
+            last unless $value_size;
 
             # Emitting header
             push @$eh, $key, $value;
@@ -230,11 +228,11 @@ sub headers_decode {
         {
             my $size = int_decode( $buf_ref, $buf_offset + $offset,
                 \my $index, ( $f & 0xC0 ) == 0x40 ? 6 : 4 );
-            return $offset unless $size;
+            last unless $size;
 
             my $value_size =
               str_decode( $buf_ref, $buf_offset + $offset + $size, \my $value );
-            return $offset unless $value_size;
+            last unless $value_size;
 
             my $key;
 
@@ -269,20 +267,29 @@ sub headers_decode {
         elsif ( ( $f & 0xE0 ) == 0x20 ) {
             my $size =
               int_decode( $buf_ref, $buf_offset + $offset, \my $ht_size, 5 );
-            return $offset unless $size;
+            last unless $size;
 
             # It's not possible to increase size of HEADER_TABLE
             if (
                 $ht_size > $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} )
             {
                 tracer->error( "Peer attempt to increase "
-                      . "SETTINGS_HEADER_TABLE_SIZE higher than current size: "
+                      . "maximum header table size higher than current size: "
                       . "$ht_size > "
                       . $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} );
                 $con->error(COMPRESSION_ERROR);
                 return undef;
             }
-            $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE} = $ht_size;
+            if (@$eh) {
+                tracer->error(
+                    "Attempt to change header table size after headers");
+                $con->error(COMPRESSION_ERROR);
+                return undef;
+            }
+            tracer->debug( "Update header table size from "
+                  . $context->{max_ht_size} . " to "
+                  . $ht_size );
+            $context->{max_ht_size} = $ht_size;
             evict_ht( $context, 0 );
             $offset += $size;
         }
@@ -294,6 +301,14 @@ sub headers_decode {
             return undef;
         }
     }
+
+    if ( $offset != $length ) {
+        tracer->error(
+            "Headers decoding stopped at offset $offset of $length\n");
+        $con->error(COMPRESSION_ERROR);
+        return undef;
+    }
+
     return $offset;
 }
 
@@ -301,6 +316,15 @@ sub headers_encode {
     my ( $context, $headers ) = @_;
     my $res = '';
     my $ht  = $context->{header_table};
+    my $sht = $context->{settings}->{&SETTINGS_HEADER_TABLE_SIZE};
+
+    # Encode dynamic table size update
+    if ( $context->{max_ht_size} != $sht ) {
+        $res .= int_encode( $sht, 5 );
+        vec( $res, 3, 2 ) = 0;
+        vec( $res, 5, 1 ) = 1;
+        $context->{max_ht_size} = $sht;
+    }
 
   HLOOP:
     for my $n ( 0 .. $#$headers / 2 ) {

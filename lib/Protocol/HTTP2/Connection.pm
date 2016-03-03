@@ -41,7 +41,8 @@ sub new {
             header_table => [],
 
             # HPACK. Header Table size
-            ht_size => 0,
+            ht_size     => 0,
+            max_ht_size => DEFAULT_HEADER_TABLE_SIZE,
 
             settings => {%default_settings},
 
@@ -53,7 +54,8 @@ sub new {
             header_table => [],
 
             # HPACK. Header Table size
-            ht_size => 0,
+            ht_size     => 0,
+            max_ht_size => DEFAULT_HEADER_TABLE_SIZE,
 
             # HPACK. Emitted headers
             emitted_headers => [],
@@ -100,6 +102,10 @@ sub new {
             $self->{decode_ctx}->{settings}->{$_} = $opts{settings}{$_};
         }
     }
+
+    # Sync decode context max_ht_size
+    $self->{decode_ctx}->{max_ht_size} =
+      $self->{decode_ctx}->{settings}->{&SETTINGS_HEADER_TABLE_SIZE};
 
     $self;
 }
