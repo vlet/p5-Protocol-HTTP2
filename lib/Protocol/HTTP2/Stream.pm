@@ -200,6 +200,22 @@ sub stream_pp_headers {
     $self->{streams}->{$stream_id}->{pp_headers};
 }
 
+sub stream_trailer {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{trailer} = shift if @_;
+    $self->{streams}->{$stream_id}->{trailer};
+}
+
+sub stream_trailer_headers {
+    my $self      = shift;
+    my $stream_id = shift;
+    return undef unless exists $self->{streams}->{$stream_id};
+    $self->{streams}->{$stream_id}->{trailer_headers} = shift if @_;
+    $self->{streams}->{$stream_id}->{trailer_headers};
+}
+
 # Explicit content-length in headers
 sub stream_length {
     my $self      = shift;
@@ -226,14 +242,18 @@ sub stream_headers_done {
     # Clear header_block
     $s->{header_block} = '';
 
-    my $eh = $self->decode_context->{emitted_headers};
+    my $eh          = $self->decode_context->{emitted_headers};
     my $is_response = $self->{type} == CLIENT && !$s->{promised_sid};
+    my $is_trailer  = !!$self->stream_trailer($stream_id);
 
     return undef
       unless $self->validate_headers( $eh, $stream_id, $is_response );
 
     if ( $s->{promised_sid} ) {
         $self->{streams}->{ $s->{promised_sid} }->{pp_headers} = $eh;
+    }
+    elsif ($is_trailer) {
+        $self->stream_trailer_headers( $stream_id, $eh );
     }
     else {
         $s->{headers} = $eh;
@@ -260,6 +280,21 @@ sub validate_headers {
         qw(:method :scheme :authority
           :path)
     );
+
+    # Trailer headers ?
+    if ( my $t = $self->stream_trailer($stream_id) ) {
+        for my $i ( 0 .. @$headers / 2 - 1 ) {
+            my ( $h, $v ) = ( $headers->[ $i * 2 ], $headers->[ $i * 2 + 1 ] );
+            if ( !exists $t->{$h} ) {
+                tracer->warning(
+                    "header <$h> doesn't listed in the trailer header");
+                $self->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
+        }
+        return 1;
+    }
+
     for my $i ( 0 .. @$headers / 2 - 1 ) {
         my ( $h, $v ) = ( $headers->[ $i * 2 ], $headers->[ $i * 2 + 1 ] );
         if ( $h =~ /^\:/ ) {
@@ -298,6 +333,22 @@ sub validate_headers {
         }
         elsif ( $h eq 'content-length' ) {
             $self->stream_length( $stream_id, $v );
+        }
+        elsif ( $h eq 'trailer' ) {
+            my %th = map { $_ => 1 } split /\s*,\s*/, lc($v);
+            if (
+                grep { exists $th{$_} } (
+                    qw(transfer-encoding content-length host authentication
+                      cache-control expect max-forwards pragma range te
+                      content-encoding content-type content-range trailer)
+                )
+              )
+            {
+                tracer->warning("trailer header contain forbidden headers");
+                $self->stream_error( $stream_id, PROTOCOL_ERROR );
+                return undef;
+            }
+            $self->stream_trailer( $stream_id, {%th} );
         }
     }
 

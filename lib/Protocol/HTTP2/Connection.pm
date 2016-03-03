@@ -287,6 +287,13 @@ sub state_machine {
         elsif ( $type == RST_STREAM ) {
             $self->stream_state( $stream_id, CLOSED );
         }
+        elsif ($type == HEADERS
+            && !$pending
+            && $self->stream_trailer($stream_id) )
+        {
+            tracer->error("expected END_STREAM flag for trailer HEADERS frame");
+            $self->error(PROTOCOL_ERROR);
+        }
     }
 
     # RESERVED (local/remote)
