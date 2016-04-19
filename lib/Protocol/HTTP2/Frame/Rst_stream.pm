@@ -26,12 +26,14 @@ sub decode {
     tracer->debug( "Receive reset stream with error code "
           . const_name( "errors", $code )
           . "\n" );
+    $con->stream_reset( $frame_ref->{stream}, $code );
 
     return $length;
 }
 
 sub encode {
     my ( $con, $flags_ref, $stream, $data ) = @_;
+    $con->stream_reset( $stream, $data );
     return pack 'N', $data;
 }
 

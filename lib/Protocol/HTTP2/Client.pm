@@ -257,6 +257,11 @@ Prepare HTTP/2 request.
             ...
         },
 
+        # Callback when receive stream reset
+        on_error => sub {
+            my $error_code = shift;
+        },
+
         # Body of POST request
         data => "hello=world&test=done",
     );
@@ -307,6 +312,15 @@ on_done will receive empty string.
 
         # continue downloading
         return 1
+    }
+
+=item on_error => sub {...}
+
+Callback invoked on stream errors
+
+    on_error => sub {
+        my $error = shift;
+        ...
     }
 
 =back
@@ -370,10 +384,15 @@ sub request {
         $stream_id,
         CLOSED,
         sub {
-            $h{on_done}->(
-                $con->stream_headers($stream_id),
-                $con->stream_data($stream_id),
-            );
+            if ( exists $h{on_error} && $con->stream_reset($stream_id) ) {
+                $h{on_error}->( $con->stream_reset($stream_id) );
+            }
+            else {
+                $h{on_done}->(
+                    $con->stream_headers($stream_id),
+                    $con->stream_data($stream_id),
+                );
+            }
             $self->active_streams(-1);
         }
     ) if exists $h{on_done};
