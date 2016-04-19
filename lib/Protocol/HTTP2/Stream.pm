@@ -322,7 +322,7 @@ sub validate_headers {
         $pseudo_flag = 0 if $pseudo_flag;
 
         if ( $h eq 'connection' ) {
-            tracer->warning("connection header are not valid in http/2");
+            tracer->warning("connection header is not valid in http/2");
             $self->stream_error( $stream_id, PROTOCOL_ERROR );
             return undef;
         }
