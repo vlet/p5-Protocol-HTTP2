@@ -8,6 +8,23 @@ use Protocol::HTTP2::Trace qw(tracer);
 
 # Streams related part of Protocol::HTTP2::Conntection
 
+# Autogen properties
+{
+    no strict 'refs';
+    for my $prop (
+        qw(promised_sid headers pp_headers header_block trailer
+        trailer_headers length blocked_data weight end reset)
+      )
+    {
+        *{ __PACKAGE__ . '::stream_' . $prop } = sub {
+            return
+                !exists $_[0]->{streams}->{ $_[1] } ? undef
+              : @_ == 2 ? $_[0]->{streams}->{ $_[1] }->{$prop}
+              :           ( $_[0]->{streams}->{ $_[1] }->{$prop} = $_[2] );
+          }
+    }
+}
+
 sub new_stream {
     my $self = shift;
     return undef if $self->goaway;
@@ -102,7 +119,7 @@ sub stream_state {
                 for my $key ( keys %$s ) {
                     next if grep { $key eq $_ } (
                         qw(state weight stream_dep
-                          fcw_recv fcw_send   )
+                          fcw_recv fcw_send reset)
                     );
                     delete $s->{$key};
                 }
@@ -124,15 +141,6 @@ sub stream_pending_state {
           defined $s->{pending_state} ? $stream_id : undef;
     }
     $s->{pending_state};
-}
-
-sub stream_promised_sid {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-    $s->{promised_sid} = shift if @_;
-    $s->{promised_sid};
 }
 
 sub stream_cb {
@@ -171,58 +179,6 @@ sub stream_data {
     }
 
     $s->{data};
-}
-
-# Header Block -- The entire set of encoded header field representations
-sub stream_header_block {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-
-    $s->{header_block} .= shift if @_;
-
-    $s->{header_block};
-}
-
-sub stream_headers {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{headers} = shift if @_;
-    $self->{streams}->{$stream_id}->{headers};
-}
-
-sub stream_pp_headers {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{pp_headers};
-}
-
-sub stream_trailer {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{trailer} = shift if @_;
-    $self->{streams}->{$stream_id}->{trailer};
-}
-
-sub stream_trailer_headers {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{trailer_headers} = shift if @_;
-    $self->{streams}->{$stream_id}->{trailer_headers};
-}
-
-# Explicit content-length in headers
-sub stream_length {
-    my $self      = shift;
-    my $stream_id = shift;
-    return undef unless exists $self->{streams}->{$stream_id};
-    $self->{streams}->{$stream_id}->{length} = shift if @_;
-    $self->{streams}->{$stream_id}->{length};
 }
 
 sub stream_headers_done {
@@ -401,15 +357,6 @@ sub stream_fcw_update {
     $self->enqueue( WINDOW_UPDATE, 0, $stream_id, DEFAULT_INITIAL_WINDOW_SIZE );
 }
 
-sub stream_blocked_data {
-    my $self      = shift;
-    my $stream_id = shift;
-    my $s         = $self->{streams}->{$stream_id} or return undef;
-
-    $s->{blocked_data} = shift if @_;
-    $s->{blocked_data};
-}
-
 sub stream_send_blocked {
     my ( $self, $stream_id ) = @_;
     my $s = $self->{streams}->{$stream_id} or return undef;
@@ -419,24 +366,6 @@ sub stream_send_blocked {
     {
         $self->send_data($stream_id);
     }
-}
-
-sub stream_weight {
-    my ( $self, $stream_id, $weight ) = @_;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-
-    $s->{weight} = $weight if defined $weight;
-    $s->{weight};
-}
-
-sub stream_end {
-    my ( $self, $stream_id, $end_flag ) = @_;
-    return undef unless exists $self->{streams}->{$stream_id};
-    my $s = $self->{streams}->{$stream_id};
-
-    $s->{end} = $end_flag if defined $end_flag;
-    $s->{end};
 }
 
 sub stream_reprio {
