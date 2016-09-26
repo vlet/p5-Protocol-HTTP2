@@ -393,7 +393,7 @@ sub send_data {
         }
 
         # Flow control
-        if ( $l != 0 && $size == 0 ) {
+        if ( $l != 0 && $size <= 0 ) {
             $self->stream_blocked_data( $stream_id, $data );
             last;
         }

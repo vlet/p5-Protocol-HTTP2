@@ -362,7 +362,7 @@ sub stream_send_blocked {
     my $s = $self->{streams}->{$stream_id} or return undef;
 
     if ( length( $s->{blocked_data} )
-        && $self->stream_fcw_send($stream_id) != 0 )
+        && $self->stream_fcw_send($stream_id) > 0 )
     {
         $self->send_data($stream_id);
     }
