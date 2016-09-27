@@ -393,10 +393,7 @@ sub send_data {
         }
 
         # Flow control
-        if ( $l != 0 && $size <= 0 ) {
-            $self->stream_blocked_data( $stream_id, $data );
-            last;
-        }
+        last if $l != 0 && $size <= 0;
         $self->fcw_send( -$size );
         $self->stream_fcw_send( $stream_id, -$size );
 
@@ -406,6 +403,7 @@ sub send_data {
         );
         last if $l == $size;
     }
+    $self->stream_blocked_data( $stream_id, $data );
 }
 
 sub send_blocked {
