@@ -473,9 +473,10 @@ sub fcw_update {
     my $self = shift;
 
     # TODO: check size of data in memory
-    tracer->debug("update fcw recv of connection\n");
-    $self->fcw_recv(DEFAULT_INITIAL_WINDOW_SIZE);
-    $self->enqueue( WINDOW_UPDATE, 0, 0, DEFAULT_INITIAL_WINDOW_SIZE );
+    my $size = $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE);
+    tracer->debug("update fcw recv of connection with $size b.\n");
+    $self->fcw_recv($size);
+    $self->enqueue( WINDOW_UPDATE, 0, 0, $size );
 }
 
 sub fcw_initial_change {

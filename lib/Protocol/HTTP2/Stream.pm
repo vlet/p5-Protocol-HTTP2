@@ -352,9 +352,10 @@ sub stream_fcw_update {
     my ( $self, $stream_id ) = @_;
 
     # TODO: check size of data of stream  in memory
-    tracer->debug("update fcw recv of stream $stream_id\n");
-    $self->stream_fcw_recv( $stream_id, DEFAULT_INITIAL_WINDOW_SIZE );
-    $self->enqueue( WINDOW_UPDATE, 0, $stream_id, DEFAULT_INITIAL_WINDOW_SIZE );
+    my $size = $self->dec_setting(SETTINGS_INITIAL_WINDOW_SIZE);
+    tracer->debug("update fcw recv of stream $stream_id with $size b.\n");
+    $self->stream_fcw_recv( $stream_id, $size );
+    $self->enqueue( WINDOW_UPDATE, 0, $stream_id, $size );
 }
 
 sub stream_send_blocked {
