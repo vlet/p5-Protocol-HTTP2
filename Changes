@@ -2,6 +2,14 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.08 2016-09-27T12:57:26Z
+    - implemented on_error callback for request
+    - fixed bug: incorrect handling of negative window size (thanks to Daniil
+      Bondarev for patch #2)
+    - fixed bug: last chunk of blocked data can be sent several times
+    - size of flow control window updated with current value of
+      SETTINGS_INITIAL_WINDOW_SIZE
+
 1.07 2016-03-03T20:44:19Z
     - implemented ping() method for client and server
     - implemented trailer headers support

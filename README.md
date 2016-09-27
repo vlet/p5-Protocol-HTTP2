@@ -106,4 +106,4 @@ it under the same terms as Perl itself.
 
 # AUTHOR
 
-Vladimir Lettiev &lt;thecrux@gmail.com>
+Vladimir Lettiev <thecrux@gmail.com>
