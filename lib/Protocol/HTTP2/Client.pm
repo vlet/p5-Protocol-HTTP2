@@ -109,7 +109,7 @@ Initialize new client object
 
     my $client = Procotol::HTTP2::Client->new( %options );
 
-Availiable options:
+Available options:
 
 =over
 
@@ -456,7 +456,7 @@ sub shutdown {
 
 =head3 close
 
-Explicitly close connection (send GOAWAY frame). This is requred if client
+Explicitly close connection (send GOAWAY frame). This is required if client
 has keepalive option enabled.
 
 =cut

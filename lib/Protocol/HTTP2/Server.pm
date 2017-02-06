@@ -110,7 +110,7 @@ Initialize new server object
 
     my $server = Procotol::HTTP2::Client->new( %options );
 
-Availiable options:
+Available options:
 
 =over
 
