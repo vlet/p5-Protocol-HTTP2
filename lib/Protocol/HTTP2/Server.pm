@@ -305,7 +305,7 @@ If body of response is not yet ready or server will stream data
         my ( $class, %opts ) = @_;
         my $self = bless {%opts}, $class;
 
-        if ( $self->{on_cancel} ) {
+        if ( my $on_cancel = $self->{on_cancel} ) {
             Scalar::Util::weaken( my $self = $self );
             $self->{con}->stream_cb(
                 $self->{stream_id},
@@ -313,7 +313,7 @@ If body of response is not yet ready or server will stream data
                 sub {
                     return if $self->{done};
                     $self->{done} = 1;
-                    $self->{on_cancel}->();
+                    $on_cancel->();
                 }
             );
         }
