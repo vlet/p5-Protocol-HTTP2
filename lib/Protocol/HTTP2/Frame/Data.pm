@@ -54,7 +54,7 @@ sub decode {
     # Check length of data matched content-length in header
     if ( $frame_ref->{flags} & END_STREAM ) {
         my $slen = $con->stream_length( $frame_ref->{stream} );
-        if ( defined $slen
+        if ( defined $slen && defined $con->stream_data( $frame_ref->{stream} )
             && $slen != length $con->stream_data( $frame_ref->{stream} ) )
         {
             tracer->warning(
