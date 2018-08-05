@@ -14,7 +14,7 @@ Protocol::HTTP2 - HTTP/2 protocol implementation (RFC 7540)
 
 # DESCRIPTION
 
-Protocol::HTTP2 is HTTP/2 protocol implementation (RFC 7540) with stateful
+Protocol::HTTP2 is HTTP/2 protocol implementation ([RFC 7540](https://tools.ietf.org/html/rfc7540)) with stateful
 decoders/encoders of HTTP/2 frames. You may use this module to implement your
 own HTTP/2 client/server/intermediate on top of your favorite event loop over
 plain or tls socket (see examples).
@@ -74,8 +74,7 @@ object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol:
 
 ## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol::HTTP2::HeaderCompression)
 
-Module implements HPACK - Header Compression for HTTP/2 (RFC 7541).
-[https://tools.ietf.org/html/rfc7541](https://tools.ietf.org/html/rfc7541)
+Module implements HPACK - Header Compression for HTTP/2 ([RFC 7541](https://tools.ietf.org/html/rfc7541)).
 
 ## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
 

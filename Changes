@@ -2,6 +2,13 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.09 2018-08-05T16:03:20Z
+    - doc: fix spelling mistakes (Gregor Herrmann)
+    - doc: added link to RFC 7541 (Mohammad S Anwar)
+    - bugfix: protect against "disappearing" on_cancel() callback of
+      server object (Felipe Gasper)
+    - bugfix: prevent uninitialized warning (Junho Choi)
+
 1.08 2016-09-27T12:57:26Z
     - implemented on_error callback for request
     - fixed bug: incorrect handling of negative window size (thanks to Daniil
