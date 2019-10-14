@@ -62,7 +62,7 @@ sub server {
                 }
             };
             if ($@) {
-                croak "Some problem with SSL CTX: $@\n";
+                croak "Some problem with SSL CTX: $@" . Net::SSLeay::print_errs();
             }
         }
 
