@@ -1,6 +1,7 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+    - test: fixed test 9 (issue 10)
 
 1.09 2018-08-05T16:03:20Z
     - doc: fix spelling mistakes (Gregor Herrmann)
