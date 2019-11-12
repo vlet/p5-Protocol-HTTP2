@@ -32,15 +32,15 @@ never become production, but at least it works.
     | Preface                 |        +        |
     | Headers (de)compression |        +        |
     | Stream states           |        +        |
-    | Flow control            |        ±        |
-    | Stream priority         |        ±        |
+    | Flow control            |        Â±        |
+    | Stream priority         |        Â±        |
     | Server push             |        +        |
     | Connect method          |        -        |
 
 
     | Frame           | encoder | decoder |
     | --------------- |:-------:|:-------:|
-    | DATA            |    ±    |    +    |
+    | DATA            |    Â±    |    +    |
     | HEADERS         |    +    |    +    |
     | PRIORITY        |    +    |    +    |
     | RST_STREAM      |    +    |    +    |
@@ -49,38 +49,38 @@ never become production, but at least it works.
     | PING            |    +    |    +    |
     | GOAWAY          |    +    |    +    |
     | WINDOW_UPDATE   |    +    |    +    |
-    | CONTINUATION    |    ±    |    +    |
+    | CONTINUATION    |    Â±    |    +    |
 
 - - -- not implemeted
-- ± -- incomplete
+- Â± -- incomplete
 - + -- implemented (may even work)
 
 # MODULES
 
-## [Protocol::HTTP2::Client](https://metacpan.org/pod/Protocol::HTTP2::Client)
+## [Protocol::HTTP2::Client](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AClient)
 
 Client protocol decoder/encoder with constructor of requests
 
-## [Protocol::HTTP2::Server](https://metacpan.org/pod/Protocol::HTTP2::Server)
+## [Protocol::HTTP2::Server](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AServer)
 
 Server protocol decoder/encoder with constructor of responses/pushes
 
-## [Protocol::HTTP2::Connection](https://metacpan.org/pod/Protocol::HTTP2::Connection)
+## [Protocol::HTTP2::Connection](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AConnection)
 
 Main low level module for protocol logic and state processing. Connection
-object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol::HTTP2::Frame) (frame encoding/decoding),
-[Protocol::HTTP2::Stream](https://metacpan.org/pod/Protocol::HTTP2::Stream) (stream operations) and [Protocol::HTTP2::Upgrade](https://metacpan.org/pod/Protocol::HTTP2::Upgrade)
+object is a mixin of [Protocol::HTTP2::Frame](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AFrame) (frame encoding/decoding),
+[Protocol::HTTP2::Stream](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AStream) (stream operations) and [Protocol::HTTP2::Upgrade](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AUpgrade)
 (HTTP/1.1 Upgrade support)
 
-## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol::HTTP2::HeaderCompression)
+## [Protocol::HTTP2::HeaderCompression](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AHeaderCompression)
 
 Module implements HPACK - Header Compression for HTTP/2 ([RFC 7541](https://tools.ietf.org/html/rfc7541)).
 
-## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol::HTTP2::Constants)
+## [Protocol::HTTP2::Constants](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3AConstants)
 
 Module contains all defined in HTTP/2 protocol constants and default values
 
-## [Protocol::HTTP2::Trace](https://metacpan.org/pod/Protocol::HTTP2::Trace)
+## [Protocol::HTTP2::Trace](https://metacpan.org/pod/Protocol%3A%3AHTTP2%3A%3ATrace)
 
 Module for debugging. You can setup HTTP2\_DEBUG environment variable to change
 verbosity of the module (output to STDOUT). Default level is error.
