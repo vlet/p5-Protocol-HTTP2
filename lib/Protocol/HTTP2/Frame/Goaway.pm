@@ -22,12 +22,18 @@ sub decode {
           . const_name( 'errors', $error_code )
           . " last stream is $last_stream_id\n" );
 
-    tracer->debug( "additional debug data: "
-          . bin2hex( substr( $$buf_ref, $buf_offset + 8 ) )
-          . "\n" )
-      if $length - 8 > 0;
+    my $goaway = {
+                  error => $error_code,
+                  last_stream_id => $last_stream_id
+                 };
 
-    $con->goaway(1);
+    if ( $length > 8 ) {
+        my $data = substr( $$buf_ref, $buf_offset + 8 );
+        $goaway->{data} = $data;
+        tracer->debug( "additional debug data: $data\n" )
+    }
+
+    $con->goaway($goaway);
 
     return $length;
 }
