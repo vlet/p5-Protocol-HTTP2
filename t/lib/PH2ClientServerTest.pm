@@ -43,7 +43,7 @@ sub server {
         if ( !$h{upgrade} && ( $h{npn} || $h{alpn} ) ) {
             eval {
                 $tls = AnyEvent::TLS->new(
-                    method    => 'tlsv1',
+                    method    => 'tlsv1_2',
                     cert_file => $tls_crt,
                     key_file  => $tls_key,
                 );
@@ -122,7 +122,7 @@ sub client {
     }
     elsif ( $h{npn} || $h{alpn} ) {
         eval {
-            $tls = AnyEvent::TLS->new( method => 'tlsv1', );
+            $tls = AnyEvent::TLS->new( method => 'tlsv1_2', );
 
             if ( delete $h{npn} ) {
 
