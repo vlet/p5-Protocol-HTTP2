@@ -43,7 +43,6 @@ sub server {
         if ( !$h{upgrade} && ( $h{npn} || $h{alpn} ) ) {
             eval {
                 $tls = AnyEvent::TLS->new(
-                    method    => 'tlsv1',
                     cert_file => $tls_crt,
                     key_file  => $tls_key,
                 );
@@ -77,7 +76,7 @@ sub server {
             : (),
             on_error => sub {
                 $_[0]->destroy;
-                print "connection error\n";
+                print STDERR "connection error: $_[2]: $!\n";
             },
             on_eof => sub {
                 $handle->destroy;
@@ -122,7 +121,7 @@ sub client {
     }
     elsif ( $h{npn} || $h{alpn} ) {
         eval {
-            $tls = AnyEvent::TLS->new( method => 'tlsv1', );
+            $tls = AnyEvent::TLS->new();
 
             if ( delete $h{npn} ) {
 
@@ -168,7 +167,7 @@ sub client {
             autocork => 1,
             on_error => sub {
                 $_[0]->destroy;
-                print "connection error\n";
+                print STDERR "connection error: $_[2]: $!\n";
                 $w->send(0);
             },
             on_eof => sub {
