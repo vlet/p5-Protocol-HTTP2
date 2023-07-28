@@ -77,7 +77,7 @@ sub server {
             : (),
             on_error => sub {
                 $_[0]->destroy;
-                print "connection error\n";
+                print STDERR "connection error: $_[2]: $!\n";
             },
             on_eof => sub {
                 $handle->destroy;
@@ -168,7 +168,7 @@ sub client {
             autocork => 1,
             on_error => sub {
                 $_[0]->destroy;
-                print "connection error\n";
+                print STDERR "connection error: $_[2]: $!\n";
                 $w->send(0);
             },
             on_eof => sub {
