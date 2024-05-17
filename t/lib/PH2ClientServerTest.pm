@@ -28,7 +28,7 @@ sub server {
     my (%h) = @_;
 
     my $cb   = delete $h{test_cb} or croak "no servers test_cb";
-    my $port = delete $h{port}    or croak "no port availiable";
+    my $port = delete $h{port}    or croak "no port available";
     my $host = delete $h{host};
     my $tls_crt = delete $h{"tls_crt"};
     my $tls_key = delete $h{"tls_key"};
@@ -107,12 +107,12 @@ sub server {
         );
     };
     my $res = $w->recv;
-    croak("error occured\n") unless $res;
+    croak("error occurred\n") unless $res;
 }
 
 sub client {
     my (%h) = @_;
-    my $port = delete $h{port} or croak "no port availiable";
+    my $port = delete $h{port} or croak "no port available";
     my $tls;
 
     my $host = delete $h{host};
@@ -198,7 +198,7 @@ sub client {
     };
 
     my $res = $w->recv;
-    croak("error occured\n") unless $res;
+    croak("error occurred\n") unless $res;
 }
 
 1;

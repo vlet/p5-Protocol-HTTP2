@@ -37,7 +37,7 @@ sub int_encode {
 #   int_ref    - ref to scalar where result will be stored
 #   N          - bits in first byte
 #
-# returns: count of readed bytes of encoded integer
+# returns: count of read bytes of encoded integer
 #          or undef on error (malformed data)
 
 sub int_decode {
@@ -82,7 +82,7 @@ sub str_encode {
 #   buf_ref    - ref to buffer with encoded data
 #   buf_offset - offset in buffer
 #   str_ref    - ref to scalar where result will be stored
-# returns: count of readed bytes of encoded data
+# returns: count of read bytes of encoded data
 
 sub str_decode {
     my ( $buf_ref, $buf_offset, $str_ref ) = @_;

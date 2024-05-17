@@ -108,7 +108,7 @@ for PSGI based on L<Protocol::HTTP2::Server>.
 
 Initialize new server object
 
-    my $server = Procotol::HTTP2::Client->new( %options );
+    my $server = Protocol::HTTP2::Client->new( %options );
 
 Available options:
 
@@ -385,7 +385,7 @@ L<Server Push|https://tools.ietf.org/html/rfc7540#section-8.2>
             # "/style.css" to client before it request it to increase speed
             # of loading of whole page
             $server->push(
-                ':authority' => 'locahost:8000',
+                ':authority' => 'localhost:8000',
                 ':method'    => 'GET',
                 ':path'      => '/style.css',
                 ':scheme'    => 'http',
