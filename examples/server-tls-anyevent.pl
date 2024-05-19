@@ -83,7 +83,7 @@ tcp_server $host, $port, sub {
         },
         on_error => sub {
             my $error = shift;
-            printf "Error occured: %s\n", const_name( "errors", $error );
+            printf "Error occurred: %s\n", const_name( "errors", $error );
         },
         on_request => sub {
             my ( $stream_id, $headers, $data ) = @_;

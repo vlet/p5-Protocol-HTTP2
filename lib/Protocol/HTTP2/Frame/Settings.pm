@@ -59,7 +59,7 @@ sub decode {
     }
 
     if ( $length % 6 != 0 ) {
-        tracer->error("Settings frame payload is broken (lenght $length)\n");
+        tracer->error("Settings frame payload is broken (length $length)\n");
         $con->error(FRAME_SIZE_ERROR);
         return undef;
     }
