@@ -3,7 +3,7 @@ use 5.008005;
 use strict;
 use warnings;
 
-our $VERSION = "1.10";
+our $VERSION = "1.11";
 
 sub ident_plain {
     'h2c';

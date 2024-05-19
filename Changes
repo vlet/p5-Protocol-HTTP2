@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.11 2024-05-19T16:55:28Z
+    - Fix minor typos and spelling errors (Yoshikazu Sawa)
+    - Do not hardcode tlsv1 which is deprecated and disabled in some systems (Olivier Gayot)
+    - Fix length-undef warnings in pre-5.12 perls (Felipe Gasper)
+
 1.10 2019-11-12T06:19:05Z
     - test: fixed test 9 (issue 10)
 
