@@ -107,7 +107,7 @@ http2-client implementations on top of your favorite event-loop.
 
 Initialize new client object
 
-    my $client = Procotol::HTTP2::Client->new( %options );
+    my $client = Protocol::HTTP2::Client->new( %options );
 
 Available options:
 

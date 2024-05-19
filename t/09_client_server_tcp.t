@@ -37,7 +37,7 @@ subtest 'client/server' => sub {
 
         # Check for NPN/ALPN
         if ( !check_tls( @{ $opts->[0] } ) ) {
-            note "skiped $test: feature not avaliable\n";
+            note "skipped $test: feature not available\n";
             next;
         }
 
@@ -52,7 +52,7 @@ subtest 'client/server' => sub {
                         port     => $port,
                         host     => $host,
                         on_error => sub {
-                            fail "error occured: " . shift;
+                            fail "error occurred: " . shift;
                         },
                         test_cb => sub {
                             my $client = shift;
@@ -84,7 +84,7 @@ subtest 'client/server' => sub {
                         port     => $port,
                         host     => $host,
                         on_error => sub {
-                            fail "error occured: " . shift;
+                            fail "error occurred: " . shift;
                         },
                         test_cb => sub {
                             $server = shift;

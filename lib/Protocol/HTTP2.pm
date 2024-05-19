@@ -74,7 +74,7 @@ never become production, but at least it works.
 
 =over
 
-=item - -- not implemeted
+=item - -- not implemented
 
 =item ± -- incomplete
 

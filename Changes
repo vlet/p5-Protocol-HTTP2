@@ -40,7 +40,7 @@ Revision history for Perl extension Protocol-HTTP2
     - fixed bug: Chrome send ':path' as literal header, make exception for
       pseudo headers in header check
     - make exceptions for RST_STREAM frames in state_machine
-    - fixed debuging level
+    - fixed debugging level
 
 1.03 2015-07-09T21:09:54Z
     - reworked enqueue() method, implemented enqueue_raw()
@@ -56,7 +56,7 @@ Revision history for Perl extension Protocol-HTTP2
     - strict validation of headers
     - check for explicit content-length header to match size of received DATA
       frames
-    - control for maximum concurent streams
+    - control for maximum concurrent streams
     - fixed tests
 
 1.02 2015-06-22T17:27:01Z
@@ -79,7 +79,7 @@ Revision history for Perl extension Protocol-HTTP2
     - implemented client downloading, request cancelling
 
 0.15 2015-02-26T20:39:20Z
-    - Splited settings for decoder/encoder
+    - Split settings for decoder/encoder
     - Allow to setup custom settings in Server/Client constructor
     - Fixed bug with settings packing/unpacking
     - Dropper Log::Dispatch dependency
@@ -112,7 +112,7 @@ Revision history for Perl extension Protocol-HTTP2
     - updated extract_* scripts
     - updated HTTP/2 to draft 13
       - removed ALTSVC and BLOCKED frames
-      - removed DATA frames comression support
+      - removed DATA frames compression support
       - PAD_HIGH, PAD_LOW flags are replaced by PADDED
       - settings changed from 8-bit to 16-bit unsigned integer
     - updated HPACK to draft 08
@@ -126,7 +126,7 @@ Revision history for Perl extension Protocol-HTTP2
     - fixed *_COMPRESS_DATA constants
     - fixed blocked data handling
     - allow zero-sized DATA frames
-    - fixed HPACK encoding: evicting and refrence set emptying
+    - fixed HPACK encoding: evicting and reference set emptying
     - added Protocol::HTTP2::Server POD
     - fixed upgrade (added required header :scheme)
 

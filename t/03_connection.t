@@ -37,7 +37,7 @@ EOF
             }
         },
         on_error => sub {
-            fail("Error occured");
+            fail("Error occurred");
         }
     );
 
