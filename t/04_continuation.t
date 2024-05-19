@@ -22,7 +22,7 @@ subtest 'decode_continuation_request' => sub {
               const_name( "states", $current_state );
         },
         on_error => sub {
-            fail("Error occured");
+            fail("Error occurred");
         }
     );
     my $offset = $con->preface_decode( \$data, 0 );

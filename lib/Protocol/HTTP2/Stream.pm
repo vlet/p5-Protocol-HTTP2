@@ -398,7 +398,7 @@ sub stream_reprio {
 
     if ($exclusive) {
 
-        # move all siblings to childs
+        # move all siblings to children
         for my $sid ( keys %$s ) {
             next
               if $s->{$sid}->{stream_dep} != $stream_dep

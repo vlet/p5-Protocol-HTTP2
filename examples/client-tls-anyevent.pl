@@ -34,7 +34,7 @@ my $client = Protocol::HTTP2::Client->new(
     },
     on_error => sub {
         my $error = shift;
-        printf "Error occured: %s\n", const_name( "errors", $error );
+        printf "Error occurred: %s\n", const_name( "errors", $error );
     }
 );
 

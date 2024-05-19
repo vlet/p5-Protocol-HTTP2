@@ -51,7 +51,7 @@ never become production, but at least it works.
     | WINDOW_UPDATE   |    +    |    +    |
     | CONTINUATION    |    ±    |    +    |
 
-- - -- not implemeted
+- - -- not implemented
 - ± -- incomplete
 - + -- implemented (may even work)
 
