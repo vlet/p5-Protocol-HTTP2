@@ -354,7 +354,7 @@ sub send_headers {
     $self->enqueue( HEADERS, $flags, $stream_id,
         { hblock => \substr( $header_block, 0, $max_size, '' ) } );
     while ( length($header_block) > 0 ) {
-        my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
+        my $flags = length($header_block) <= $max_size ? END_HEADERS : 0;
         $self->enqueue( CONTINUATION, $flags,
             $stream_id, \substr( $header_block, 0, $max_size, '' ) );
     }
@@ -372,7 +372,7 @@ sub send_pp_headers {
         [ $promised_id, \substr( $header_block, 0, $max_size - 4, '' ) ] );
 
     while ( length($header_block) > 0 ) {
-        my $flags = length($header_block) <= $max_size ? 0 : END_HEADERS;
+        my $flags = length($header_block) <= $max_size ? END_HEADERS : 0;
         $self->enqueue( CONTINUATION, $flags,
             $stream_id, \substr( $header_block, 0, $max_size, '' ) );
     }
