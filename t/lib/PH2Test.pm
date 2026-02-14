@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use Protocol::HTTP2::Trace qw(bin2hex);
 use Exporter qw(import);
-our @EXPORT = qw(hstr binary_eq fake_connect);
+our @EXPORT = qw(hstr binary_eq fake_connect random_string);
 
 sub hstr {
     my $str = shift;
@@ -38,6 +38,11 @@ sub fake_connect {
         $server->feed($clt_frame) if $clt_frame;
         $client->feed($srv_frame) if $srv_frame;
     } while ( $clt_frame || $srv_frame );
+}
+
+sub random_string {
+    my @chars = ( 'a' .. 'z', 'A' .. 'Z', 0 .. 9 );
+    join '', map { $chars[ int( rand(@chars) ) ] } 1 .. shift;
 }
 
 1;
