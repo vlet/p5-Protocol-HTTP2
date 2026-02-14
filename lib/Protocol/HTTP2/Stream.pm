@@ -411,4 +411,11 @@ sub stream_reprio {
     return 1;
 }
 
+sub stream_header_block_add {
+    my ( $self, $stream_id, $header_chunk ) = @_;
+    return undef
+      if !exists $self->{streams}->{$stream_id} || !defined $header_chunk;
+    $self->{streams}->{$stream_id}->{header_block} .= $header_chunk;
+}
+
 1;

@@ -18,7 +18,7 @@ sub decode {
         return undef;
     }
 
-    $con->stream_header_block( $frame_ref->{stream},
+    $con->stream_header_block_add( $frame_ref->{stream},
         substr( $$buf_ref, $buf_offset, $length ) );
 
     # Stream header block complete
