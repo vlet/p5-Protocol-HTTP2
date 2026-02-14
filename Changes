@@ -2,6 +2,11 @@ Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
 
+1.12 2026-02-14T12:55:50Z
+    - fix: incorrect END_HEADERS flag on CONTINUATION frames (#18) (Daniil Bondarev)
+    - fix: arriving continuation frame overwrite the existing header buffer
+    - test: test continuation frames handling
+
 1.11 2024-05-19T16:55:28Z
     - Fix minor typos and spelling errors (Yoshikazu Sawa)
     - Do not hardcode tlsv1 which is deprecated and disabled in some systems (Olivier Gayot)
