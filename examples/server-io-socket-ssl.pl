@@ -12,10 +12,10 @@ my $srv = IO::Socket::SSL->new(
     SSL_key_file  => 'test.key',
 
     # openssl 1.0.1 support only NPN
-    SSL_npn_protocols => ['h2'],
+    #SSL_npn_protocols => ['h2'],
 
     # openssl 1.0.2 also have ALPN
-    #SSL_alpn_protocols => ['h2'],
+    SSL_alpn_protocols => ['h2'],
 ) or die $!;
 
 # Accept client connection
