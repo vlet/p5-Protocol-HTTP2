@@ -72,7 +72,7 @@
          "web" : "https://github.com/vlet/p5-Protocol-HTTP2"
       }
    },
-   "version" : "1.12",
+   "version" : "1.13",
    "x_contributors" : [
       "Daniil Bondarev <bondarev@amazon.com>",
       "Daniil Bondarev <xonatius@gmail.com>",
