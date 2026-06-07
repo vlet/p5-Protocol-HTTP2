@@ -139,6 +139,7 @@ sub headers_decode {
     my $eh = $context->{emitted_headers};
 
     my $offset = 0;
+    my $hsize  = 0;
 
     while ( $offset < $length ) {
 
@@ -163,6 +164,7 @@ sub headers_decode {
             # Static table or Header Table entry
             if ( $index <= @stable ) {
                 my ( $key, $value ) = @{ $stable[ $index - 1 ] };
+                $hsize += length($key) + length($value) + 32;
                 push @$eh, $key, $value;
                 tracer->debug("$key = $value\n");
             }
@@ -177,6 +179,7 @@ sub headers_decode {
             else {
                 my $kv_ref = $ht->[ $index - @stable - 1 ];
 
+                $hsize += length( $kv_ref->[0] ) + length( $kv_ref->[1] ) + 32;
                 push @$eh, @$kv_ref;
                 tracer->debug("$kv_ref->[0] = $kv_ref->[1]\n");
             }
@@ -209,6 +212,7 @@ sub headers_decode {
             last unless $value_size;
 
             # Emitting header
+            $hsize += length($key) + length($value) + 32;
             push @$eh, $key, $value;
 
             # Add to index
@@ -252,6 +256,7 @@ sub headers_decode {
             }
 
             # Emitting header
+            $hsize += length($key) + length($value) + 32;
             push @$eh, $key, $value;
 
             # Add to index
@@ -300,6 +305,16 @@ sub headers_decode {
             $con->error(COMPRESSION_ERROR);
             return undef;
         }
+
+        # Check header limit
+        if ( $hsize > $context->{settings}->{&SETTINGS_MAX_HEADER_LIST_SIZE} ) {
+            tracer->error( "Headers size has exceeded the allowed limit: "
+                  . $hsize
+                  . "\n" );
+            $con->error(ENHANCE_YOUR_CALM);
+            return undef;
+        }
+
     }
 
     if ( $offset != $length ) {
