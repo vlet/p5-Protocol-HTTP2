@@ -30,6 +30,8 @@ sub new {
         type => $type,
 
         streams => {},
+        closed_streams => [],
+        max_closed_streams => PH2_MAX_CLOSED_STREAMS,
 
         last_stream => $type == CLIENT ? 1 : 2,
         last_peer_stream    => 0,
@@ -93,7 +95,7 @@ sub new {
 
     }, $class;
 
-    for (qw(on_change_state on_new_peer_stream on_error upgrade)) {
+    for (qw(on_change_state on_new_peer_stream on_error upgrade max_closed_streams)) {
         $self->{$_} = $opts{$_} if exists $opts{$_};
     }
 

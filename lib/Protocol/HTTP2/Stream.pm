@@ -123,6 +123,12 @@ sub stream_state {
                     );
                     delete $s->{$key};
                 }
+
+                # Prevent endless growth of closed streams structure
+                # Drop old closed streams (possible violation of the standard)
+                push @{ $self->{closed_streams} }, $stream_id;
+                delete $self->{streams}->{ shift @{ $self->{closed_streams} } }
+                    if @{ $self->{closed_streams} } > $self->{max_closed_streams}
             }
         }
     }
