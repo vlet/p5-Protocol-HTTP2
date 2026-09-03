@@ -1,6 +1,10 @@
 Revision history for Perl extension Protocol-HTTP2
 
 {{$NEXT}}
+
+1.14 2026-09-03T14:10:30Z
+    - security fix: CVE-2026-16028 - memory exhaustion, a remote denial-of-service
+      (reported by Robert Rothenberg, CPAN Security Group)
     - licence: GPL-1 has been updated with the correct links to FSF (#19)
 
 1.13 2026-06-07T09:19:24Z
